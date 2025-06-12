@@ -46,48 +46,22 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview"])
 
-if page == "Headcount Adjustments":
-    st.title("Headcount Adjustments")
-    st.write("### Adjust Headcount by Allocation and Sub-Dept")
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
-    edited_df["Total Headcount"] = edited_df[
-        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-    ].sum(axis=1)
-    st.session_state.headcount_data = edited_df
-    st.write("### Headcount Summary by Allocation")
-    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-    st.dataframe(df_allocation_summary)
-
-if page == "Adjusted Hiring Goals":
-    st.title("Adjusted Hiring Goals")
-    st.sidebar.subheader("Adjust Attrition Percentage by Allocation")
-    attrition_rates = {allocation: st.sidebar.slider(f"{allocation} Attrition Rate (%)", 0, 50, 10, 1) / 100 for allocation in df_allocation_summary["Allocation"].unique()}
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(lambda row: row["Total Headcount"] * attrition_rates[row["Allocation"]], axis=1)
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-    st.write("### Hiring Targets Adjusted for Attrition")
-    st.dataframe(df_allocation_summary)
-
 if page == "Recruiter Capacity Model":
     st.title("Recruiter Capacity Model")
-    st.sidebar.subheader("Hiring Mode")
     hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
-    weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 26)
 
-    # Input: recruiter speed per quarter (converted to weekly speed)
+    weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 13)
+    effective_weeks = min(weeks_left_to_hire, 13)
+
     st.sidebar.markdown("### Recruiter Speed (Hires per Quarter)")
     business_speed = st.sidebar.number_input("Business", value=8)
     core_speed = st.sidebar.number_input("Core R&D", value=6)
     ml_speed = st.sidebar.number_input("Machine Learning", value=2)
 
-    recruiter_speed_per_week = {
-        "Business": business_speed / 13,
-        "Core R&D": core_speed / 13,
-        "Machine Learning": ml_speed / 13
+    recruiter_speed_per_quarter = {
+        "Business": business_speed,
+        "Core R&D": core_speed,
+        "Machine Learning": ml_speed
     }
 
     recruiter_count_by_dept = {}
@@ -96,19 +70,15 @@ if page == "Recruiter Capacity Model":
 
     hiring_quarters = {}
     if hiring_mode == "Use % Distribution":
-        st.sidebar.subheader("Hiring Distribution (if using %)")
-        percent_distribution = {}
         for allocation in df_allocation_summary["Allocation"].unique():
             q1 = st.sidebar.slider(f"{allocation} - Q1 %", 0, 100, 25, 1)
             q2 = st.sidebar.slider(f"{allocation} - Q2 %", 0, 100, 25, 1)
             q3 = st.sidebar.slider(f"{allocation} - Q3 %", 0, 100, 25, 1)
             q4 = st.sidebar.slider(f"{allocation} - Q4 %", 0, 100, 25, 1)
-            percent_distribution[allocation] = [q1, q2, q3, q4]
             total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == allocation, "Final_Hiring_Target"].values[0]
             hiring_quarters[allocation] = [round(total * (q / 100)) for q in [q1, q2, q3, q4]]
     else:
         for allocation in df_allocation_summary["Allocation"].unique():
-            st.sidebar.subheader(f"{allocation} Quarterly Hiring Quotas")
             q1 = st.sidebar.number_input(f"{allocation} - Q1 hires", min_value=0, value=5)
             q2 = st.sidebar.number_input(f"{allocation} - Q2 hires", min_value=0, value=5)
             q3 = st.sidebar.number_input(f"{allocation} - Q3 hires", min_value=0, value=5)
@@ -125,13 +95,13 @@ if page == "Recruiter Capacity Model":
 
     for allocation in df_hiring_schedule["Allocation"]:
         hires = df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, ["Q1", "Q2", "Q3", "Q4"]].values[0]
-        speed = recruiter_speed_per_week.get(allocation, 0.34)
+        speed = recruiter_speed_per_quarter.get(allocation, 8) / 13  # hires/week
         available = recruiter_count_by_dept.get(allocation, 0)
         status_list = []
         rec_counts = []
 
         for h in hires:
-            needed = round(h / (speed * weeks_left_to_hire), 1)
+            needed = round(h / (speed * effective_weeks), 1)
             rec_counts.append(needed)
             if available >= needed:
                 status_list.append("✅")
@@ -152,16 +122,3 @@ if page == "Recruiter Capacity Model":
 
     st.write("### Recruiter Status Per Quarter")
     st.dataframe(df_status)
-
-if page == "Finance Overview":
-    st.title("Finance Headcount Overview")
-    st.write("### Change in Headcount by Sub-Department")
-
-    original_df = st.session_state.original_headcount
-    current_df = st.session_state.headcount_data
-    delta_df = current_df.copy()
-    delta_df["Original Total"] = original_df["Total Headcount"]
-    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
-    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
-
-    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
