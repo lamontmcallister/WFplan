@@ -25,12 +25,9 @@ if "headcount_data" not in st.session_state:
         "FY26 Planned - not yet opened": [4, 16, 40, 10, 18, 3, 1, 2, 0, 1, 1, 0, 2, 1, 0, 2, 15, 0, 6, 6, 1, 0]
     }
     df_headcount = pd.DataFrame(headcount_data)
-
-    # Always compute Total Headcount dynamically
     df_headcount["Total Headcount"] = df_headcount[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
-
     st.session_state.headcount_data = df_headcount
     st.session_state.original_headcount = df_headcount.copy()
 
@@ -114,22 +111,37 @@ if page == "Recruiter Capacity Model":
     st.dataframe(df_hiring_schedule)
 
     recruiter_quarters = {}
-    recruiter_status = {}
+    recruiter_status_by_quarter = {}
+
     for allocation in df_hiring_schedule["Allocation"]:
         hires = df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, ["Q1", "Q2", "Q3", "Q4"]].values[0]
         speed = recruiter_speed_per_week.get(allocation, 0.34)
-        recommended = [round(h / (speed * weeks_left_to_hire), 1) for h in hires]
-        recruiter_quarters[allocation] = recommended
-
-        total_needed = sum(recommended)
         available = recruiter_count_by_dept.get(allocation, 0)
-        recruiter_status[allocation] = "✅" if available >= total_needed else f"❌ Need {round(total_needed - available, 1)} more"
+        status_list = []
+        rec_counts = []
 
-    df_recruiter_schedule = pd.DataFrame.from_dict(recruiter_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
+        for h in hires:
+            needed = round(h / (speed * weeks_left_to_hire), 1)
+            rec_counts.append(needed)
+            if available >= needed:
+                status_list.append("✅")
+            else:
+                status_list.append(f"❌ +{round(needed - available, 1)}")
+
+        recruiter_quarters[allocation] = rec_counts
+        recruiter_status_by_quarter[allocation] = status_list
+
+    df_recruiter_schedule = pd.DataFrame.from_dict(recruiter_quarters, orient="index", columns=["Q1 Needed", "Q2 Needed", "Q3 Needed", "Q4 Needed"])
     df_recruiter_schedule.insert(0, "Allocation", df_recruiter_schedule.index)
-    df_recruiter_schedule["Status"] = df_recruiter_schedule["Allocation"].map(recruiter_status)
-    st.write("### Recruiter Needs Per Quarter + Status")
+
+    df_status = pd.DataFrame.from_dict(recruiter_status_by_quarter, orient="index", columns=["Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"])
+    df_status.insert(0, "Allocation", df_status.index)
+
+    st.write("### Recruiter Needs Per Quarter")
     st.dataframe(df_recruiter_schedule)
+
+    st.write("### Recruiter Status Per Quarter")
+    st.dataframe(df_status)
 
 if page == "Finance Overview":
     st.title("Finance Headcount Overview")
