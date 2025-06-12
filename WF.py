@@ -1,11 +1,11 @@
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-# Page Configuration
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
-# Load and store updated headcount data in session state
+# --------------- Load or initialize data ----------------
 if "headcount_data" not in st.session_state:
     headcount_data = {
         "Allocation": [
@@ -43,13 +43,56 @@ df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
 )
 df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
+# --------------- Sidebar Navigation ----------------
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview"])
 
-if page == "Recruiter Capacity Model":
-    st.title("Recruiter Capacity Model")
-    hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
+# --------------- Page 1: Headcount Adjustments ----------------
+if page == "Headcount Adjustments":
+    st.title("📊 Headcount Adjustments")
+    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df["Total Headcount"] = edited_df[
+        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+    ].sum(axis=1)
+    st.session_state.headcount_data = edited_df
 
+    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+
+    st.subheader("📌 Summary by Allocation")
+    st.dataframe(df_allocation_summary)
+
+    st.subheader("📈 Total Headcount by Allocation (Bar Chart)")
+    chart = px.bar(df_allocation_summary, x="Allocation", y="Total Headcount", color="Allocation", title="Total Headcount by Allocation")
+    st.plotly_chart(chart)
+
+# --------------- Page 2: Adjusted Hiring Goals ----------------
+if page == "Adjusted Hiring Goals":
+    st.title("📈 Adjusted Hiring Goals")
+    st.sidebar.subheader("Adjust Attrition Percentage by Allocation")
+    attrition_rates = {allocation: st.sidebar.slider(f"{allocation} Attrition Rate (%)", 0, 50, 10, 1) / 100 for allocation in df_allocation_summary["Allocation"].unique()}
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * attrition_rates[row["Allocation"]],
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+
+    st.subheader("📌 Final Targets After Attrition")
+    st.dataframe(df_allocation_summary)
+
+    st.subheader("📉 Final Hiring Targets by Allocation")
+    chart = px.bar(df_allocation_summary, x="Allocation", y="Final_Hiring_Target", color="Allocation", title="Final Hiring Targets After Attrition")
+    st.plotly_chart(chart)
+
+# --------------- Page 3: Recruiter Capacity Model ----------------
+if page == "Recruiter Capacity Model":
+    st.title("🧮 Recruiter Capacity Model")
+    hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
     weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 13)
     effective_weeks = min(weeks_left_to_hire, 13)
 
@@ -87,7 +130,7 @@ if page == "Recruiter Capacity Model":
 
     df_hiring_schedule = pd.DataFrame.from_dict(hiring_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
     df_hiring_schedule.insert(0, "Allocation", df_hiring_schedule.index)
-    st.write("### Candidates to Hire Per Quarter")
+    st.subheader("🎯 Candidates to Hire Per Quarter")
     st.dataframe(df_hiring_schedule)
 
     recruiter_quarters = {}
@@ -117,8 +160,25 @@ if page == "Recruiter Capacity Model":
     df_status = pd.DataFrame.from_dict(recruiter_status_by_quarter, orient="index", columns=["Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"])
     df_status.insert(0, "Allocation", df_status.index)
 
-    st.write("### Recruiter Needs Per Quarter")
+    st.subheader("🧮 Recruiter Needs Per Quarter")
     st.dataframe(df_recruiter_schedule)
 
-    st.write("### Recruiter Status Per Quarter")
+    st.subheader("🟩 Recruiter Status Per Quarter")
     st.dataframe(df_status)
+
+# --------------- Page 4: Finance Overview ----------------
+if page == "Finance Overview":
+    st.title("💰 Finance Overview")
+    original_df = st.session_state.original_headcount
+    current_df = st.session_state.headcount_data
+    delta_df = current_df.copy()
+    delta_df["Original Total"] = original_df["Total Headcount"]
+    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
+    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
+
+    st.subheader("📊 Headcount Changes by Sub-Dept")
+    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
+
+    st.subheader("📉 Change Summary (Bar Chart)")
+    fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
+    st.plotly_chart(fig)
