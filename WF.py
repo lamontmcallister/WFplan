@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -33,6 +34,14 @@ if "headcount_data" not in st.session_state:
 df_headcount = st.session_state.headcount_data
 df_allocation_summary = df_headcount.groupby("Allocation").sum(numeric_only=True).reset_index()
 
+# Precompute hiring targets to prevent KeyErrors
+default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
+df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+    lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+    axis=1
+)
+df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+
 # Sidebar Navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model"])
@@ -54,7 +63,7 @@ if page == "Adjusted Hiring Goals":
     st.sidebar.subheader("Adjust Attrition Percentage by Allocation")
     attrition_rates = {allocation: st.sidebar.slider(f"{allocation} Attrition Rate (%)", 0, 50, 10, 1) / 100 for allocation in df_allocation_summary["Allocation"].unique()}
 
-    # Compute attrition impact before referencing Final_Hiring_Target
+    # Compute attrition impact and final targets
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(lambda row: row["Total Headcount"] * attrition_rates[row["Allocation"]], axis=1)
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
