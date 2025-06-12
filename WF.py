@@ -28,13 +28,12 @@ if "headcount_data" not in st.session_state:
     df_headcount["Total Headcount"] = df_headcount[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
-
     st.session_state.headcount_data = df_headcount
+    st.session_state.original_headcount = df_headcount.copy()
 
 df_headcount = st.session_state.headcount_data
 df_allocation_summary = df_headcount.groupby("Allocation").sum(numeric_only=True).reset_index()
 
-# Precompute hiring targets to prevent KeyErrors
 default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
 df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
     lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
@@ -42,7 +41,6 @@ df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
 )
 df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-# Sidebar Navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview"])
 
@@ -52,16 +50,22 @@ if page == "Headcount Adjustments":
     edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     st.session_state.headcount_data = edited_df
     st.write("### Headcount Summary by Allocation")
+    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
     st.dataframe(df_allocation_summary)
 
 if page == "Adjusted Hiring Goals":
     st.title("Adjusted Hiring Goals")
-    st.write("### Hiring Targets Adjusted for Attrition and Headcount Planning")
     st.sidebar.subheader("Adjust Attrition Percentage by Allocation")
     attrition_rates = {allocation: st.sidebar.slider(f"{allocation} Attrition Rate (%)", 0, 50, 10, 1) / 100 for allocation in df_allocation_summary["Allocation"].unique()}
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(lambda row: row["Total Headcount"] * attrition_rates[row["Allocation"]], axis=1)
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-    st.dataframe(df_allocation_summary[["Allocation", "Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened", "Total Headcount", "Attrition Impact", "Final_Hiring_Target"]])
+    st.write("### Hiring Targets Adjusted for Attrition")
+    st.dataframe(df_allocation_summary)
 
 if page == "Recruiter Capacity Model":
     st.title("Recruiter Capacity Model")
@@ -70,6 +74,10 @@ if page == "Recruiter Capacity Model":
     weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 26)
 
     hiring_distribution = {}
+    recruiter_count_by_dept = {}
+    for allocation in df_allocation_summary["Allocation"].unique():
+        recruiter_count_by_dept[allocation] = st.sidebar.number_input(f"{allocation} - Recruiters Available", min_value=0, value=1)
+
     if auto_distribution == "Automated 25% per Quarter":
         for allocation in df_allocation_summary["Allocation"].unique():
             hiring_distribution[allocation] = [25, 25, 25, 25]
@@ -91,37 +99,42 @@ if page == "Recruiter Capacity Model":
 
     df_hiring_schedule = pd.DataFrame.from_dict(hiring_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
     df_hiring_schedule.insert(0, "Allocation", df_hiring_schedule.index)
-    st.write("### Candidates to Hire Per Quarter (Adjusted for Attrition)")
+    st.write("### Candidates to Hire Per Quarter")
     st.dataframe(df_hiring_schedule)
 
     recruiter_speed_per_week = {"Business": 0.34, "Machine Learning": 0.03, "Core R&D": 0.22}
     recruiter_actual_weeks = {"Business": 26, "Machine Learning": 21, "Core R&D": 24}
     recruiter_quarters = {}
+    recruiter_status = {}
+
     for allocation in df_hiring_schedule["Allocation"]:
         recruiter_speed = recruiter_speed_per_week.get(allocation, 0.34)
         actual_weeks = recruiter_actual_weeks.get(allocation, 26)
         adjusted_weeks = min(actual_weeks, weeks_left_to_hire)
-        recruiter_quarters[allocation] = [round(df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, q].values[0] / (recruiter_speed * adjusted_weeks), 1) for q in ["Q1", "Q2", "Q3", "Q4"]]
+        hires = df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, ["Q1", "Q2", "Q3", "Q4"]].values[0]
+        recommended = [round(h / (recruiter_speed * adjusted_weeks), 1) for h in hires]
+        recruiter_quarters[allocation] = recommended
+
+        # Determine if recruiter input is sufficient
+        total_needed = sum(recommended)
+        available = recruiter_count_by_dept.get(allocation, 0)
+        recruiter_status[allocation] = "✅" if available >= total_needed else f"❌ Need {round(total_needed - available, 1)} more"
 
     df_recruiter_schedule = pd.DataFrame.from_dict(recruiter_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
     df_recruiter_schedule.insert(0, "Allocation", df_recruiter_schedule.index)
-    st.write("### Recommended Recruiters Needed Per Quarter (Adjusted for Hiring Timeline)")
+    df_recruiter_schedule["Status"] = df_recruiter_schedule["Allocation"].map(recruiter_status)
+    st.write("### Recruiter Needs Per Quarter + Status")
     st.dataframe(df_recruiter_schedule)
-
-    st.sidebar.subheader("Recruiter Availability")
-    recruiter_count_input = st.sidebar.number_input("Total Recruiters Available", min_value=0, value=10)
-
-    total_needed = df_recruiter_schedule[["Q1", "Q2", "Q3", "Q4"]].sum().sum()
-    if recruiter_count_input >= total_needed:
-        st.success(f"✅ You have enough recruiters! Total needed: {total_needed}, available: {recruiter_count_input}")
-    else:
-        shortfall = round(total_needed - recruiter_count_input, 1)
-        st.error(f"❌ Not enough recruiters. You need approximately {shortfall} more recruiters to meet the plan.")
 
 if page == "Finance Overview":
     st.title("Finance Headcount Overview")
-    st.write("### Net Hiring Summary (Accounting for Attrition)")
-    df_finance = df_allocation_summary[["Allocation", "Employees in seat", "Final_Hiring_Target"]].copy()
-    df_finance["Net Hiring"] = df_finance["Final_Hiring_Target"] - df_finance["Employees in seat"]
-    df_finance["Status"] = df_finance["Net Hiring"].apply(lambda x: "Surplus" if x < 0 else "Deficit" if x > 0 else "Net Zero")
-    st.dataframe(df_finance)
+    st.write("### Change in Headcount by Sub-Department")
+
+    original_df = st.session_state.original_headcount
+    current_df = st.session_state.headcount_data
+    delta_df = current_df.copy()
+    delta_df["Original Total"] = original_df["Total Headcount"]
+    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
+    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
+
+    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
