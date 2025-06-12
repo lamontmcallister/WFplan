@@ -1,7 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
 # Page Configuration
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
@@ -79,7 +78,18 @@ if page == "Recruiter Capacity Model":
     hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
     weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 26)
 
-    recruiter_speed_per_week = {"Business": 0.34, "Machine Learning": 0.03, "Core R&D": 0.22}
+    # Input: recruiter speed per quarter (converted to weekly speed)
+    st.sidebar.markdown("### Recruiter Speed (Hires per Quarter)")
+    business_speed = st.sidebar.number_input("Business", value=8)
+    core_speed = st.sidebar.number_input("Core R&D", value=6)
+    ml_speed = st.sidebar.number_input("Machine Learning", value=2)
+
+    recruiter_speed_per_week = {
+        "Business": business_speed / 13,
+        "Core R&D": core_speed / 13,
+        "Machine Learning": ml_speed / 13
+    }
+
     recruiter_count_by_dept = {}
     for allocation in df_allocation_summary["Allocation"].unique():
         recruiter_count_by_dept[allocation] = st.sidebar.number_input(f"{allocation} - Recruiters Available", min_value=0, value=1)
