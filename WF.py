@@ -1,7 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-
 import plotly.express as px
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
@@ -90,82 +89,65 @@ if page == "Adjusted Hiring Goals":
     chart = px.bar(df_allocation_summary, x="Allocation", y="Final_Hiring_Target", color="Allocation", title="Final Hiring Targets After Attrition")
     st.plotly_chart(chart)
 
+
 # --------------- Page 3: Recruiter Capacity Model ----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity Model")
-    hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
-    weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 13)
-    effective_weeks = min(weeks_left_to_hire, 13)
+    st.markdown("Plan recruiter bandwidth by quarter based on target hires, available weeks, and productivity.")
 
-    st.sidebar.markdown("### Recruiter Speed (Hires per Quarter)")
-    business_speed = st.sidebar.number_input("Business", value=8)
-    core_speed = st.sidebar.number_input("Core R&D", value=6)
-    ml_speed = st.sidebar.number_input("Machine Learning", value=2)
+    hiring_mode = st.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"], horizontal=True)
+    effective_weeks = st.slider("Weeks Remaining in Quarter", 1, 52, 13)
 
-    recruiter_speed_per_quarter = {
-        "Business": business_speed,
-        "Core R&D": core_speed,
-        "Machine Learning": ml_speed
-    }
+    st.markdown("### Recruiter Productivity (Hires per Recruiter per Week)")
+    speed_inputs = {}
+    for alloc in df_allocation_summary["Allocation"].unique():
+        speed_inputs[alloc] = st.number_input(f"{alloc} Speed", min_value=0.1, value=0.6, step=0.1)
 
-    recruiter_count_by_dept = {}
-    for allocation in df_allocation_summary["Allocation"].unique():
-        recruiter_count_by_dept[allocation] = st.sidebar.number_input(f"{allocation} - Recruiters Available", min_value=0, value=1)
+    st.markdown("### Recruiters Available")
+    available_inputs = {}
+    for alloc in df_allocation_summary["Allocation"].unique():
+        available_inputs[alloc] = st.number_input(f"{alloc} Recruiters", min_value=0, value=1)
 
     hiring_quarters = {}
     if hiring_mode == "Use % Distribution":
-        for allocation in df_allocation_summary["Allocation"].unique():
-            q1 = st.sidebar.slider(f"{allocation} - Q1 %", 0, 100, 25, 1)
-            q2 = st.sidebar.slider(f"{allocation} - Q2 %", 0, 100, 25, 1)
-            q3 = st.sidebar.slider(f"{allocation} - Q3 %", 0, 100, 25, 1)
-            q4 = st.sidebar.slider(f"{allocation} - Q4 %", 0, 100, 25, 1)
-            total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == allocation, "Final_Hiring_Target"].values[0]
-            hiring_quarters[allocation] = [round(total * (q / 100)) for q in [q1, q2, q3, q4]]
+        for alloc in df_allocation_summary["Allocation"].unique():
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: q1 = st.slider(f"{alloc} Q1 %", 0, 100, 25, 1, key=f"{alloc}_q1")
+            with col2: q2 = st.slider(f"{alloc} Q2 %", 0, 100, 25, 1, key=f"{alloc}_q2")
+            with col3: q3 = st.slider(f"{alloc} Q3 %", 0, 100, 25, 1, key=f"{alloc}_q3")
+            with col4: q4 = st.slider(f"{alloc} Q4 %", 0, 100, 25, 1, key=f"{alloc}_q4")
+            total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == alloc, "Final_Hiring_Target"].values[0]
+            hiring_quarters[alloc] = [round(total * (q / 100)) for q in [q1, q2, q3, q4]]
     else:
-        for allocation in df_allocation_summary["Allocation"].unique():
-            q1 = st.sidebar.number_input(f"{allocation} - Q1 hires", min_value=0, value=5)
-            q2 = st.sidebar.number_input(f"{allocation} - Q2 hires", min_value=0, value=5)
-            q3 = st.sidebar.number_input(f"{allocation} - Q3 hires", min_value=0, value=5)
-            q4 = st.sidebar.number_input(f"{allocation} - Q4 hires", min_value=0, value=5)
-            hiring_quarters[allocation] = [q1, q2, q3, q4]
+        for alloc in df_allocation_summary["Allocation"].unique():
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: q1 = st.number_input(f"{alloc} Q1 hires", min_value=0, value=5, key=f"{alloc}_m_q1")
+            with col2: q2 = st.number_input(f"{alloc} Q2 hires", min_value=0, value=5, key=f"{alloc}_m_q2")
+            with col3: q3 = st.number_input(f"{alloc} Q3 hires", min_value=0, value=5, key=f"{alloc}_m_q3")
+            with col4: q4 = st.number_input(f"{alloc} Q4 hires", min_value=0, value=5, key=f"{alloc}_m_q4")
+            hiring_quarters[alloc] = [q1, q2, q3, q4]
 
-    df_hiring_schedule = pd.DataFrame.from_dict(hiring_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
-    df_hiring_schedule.insert(0, "Allocation", df_hiring_schedule.index)
-    st.subheader("🎯 Candidates to Hire Per Quarter")
-    st.dataframe(df_hiring_schedule)
+    df_hiring = pd.DataFrame.from_dict(hiring_quarters, orient='index', columns=["Q1", "Q2", "Q3", "Q4"])
+    df_hiring.insert(0, "Allocation", df_hiring.index)
+    st.subheader("🎯 Hiring Goals per Quarter")
+    st.dataframe(df_hiring)
 
-    recruiter_quarters = {}
-    recruiter_status_by_quarter = {}
+    recruiter_summary = []
+    for alloc in df_hiring["Allocation"]:
+        hires = df_hiring.loc[alloc, ["Q1", "Q2", "Q3", "Q4"]].values
+        speed = speed_inputs.get(alloc, 0.6)
+        available = available_inputs.get(alloc, 1)
+        needed = [round(h / (speed * effective_weeks), 1) if speed > 0 else 0 for h in hires]
+        status = ["✅" if available >= n else f"❌ +{round(n - available, 1)}" for n in needed]
+        recruiter_summary.append((alloc, *needed, *status))
 
-    for allocation in df_hiring_schedule["Allocation"]:
-        hires = df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, ["Q1", "Q2", "Q3", "Q4"]].values[0]
-        speed = recruiter_speed_per_quarter.get(allocation, 8) / 13  # hires/week
-        available = recruiter_count_by_dept.get(allocation, 0)
-        status_list = []
-        rec_counts = []
+    summary_cols = ["Allocation", "Q1 Needed", "Q2 Needed", "Q3 Needed", "Q4 Needed",
+                    "Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"]
+    df_summary = pd.DataFrame(recruiter_summary, columns=summary_cols)
 
-        for h in hires:
-            needed = round(h / (speed * effective_weeks), 1)
-            rec_counts.append(needed)
-            if available >= needed:
-                status_list.append("✅")
-            else:
-                status_list.append(f"❌ +{round(needed - available, 1)}")
+    st.subheader("🧮 Recruiter Needs and Status")
+    st.dataframe(df_summary)
 
-        recruiter_quarters[allocation] = rec_counts
-        recruiter_status_by_quarter[allocation] = status_list
-
-    df_recruiter_schedule = pd.DataFrame.from_dict(recruiter_quarters, orient="index", columns=["Q1 Needed", "Q2 Needed", "Q3 Needed", "Q4 Needed"])
-    df_recruiter_schedule.insert(0, "Allocation", df_recruiter_schedule.index)
-
-    df_status = pd.DataFrame.from_dict(recruiter_status_by_quarter, orient="index", columns=["Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"])
-    df_status.insert(0, "Allocation", df_status.index)
-
-    st.subheader("🧮 Recruiter Needs Per Quarter")
-    st.dataframe(df_recruiter_schedule)
-
-    st.subheader("🟩 Recruiter Status Per Quarter")
-    st.dataframe(df_status)
 
 # --------------- Page 4: Finance Overview ----------------
 if page == "Finance Overview":
