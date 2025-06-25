@@ -17,6 +17,7 @@ df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))  # Si
 
 import streamlit as st
 import pandas as pd
+
 import plotly.express as px
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
