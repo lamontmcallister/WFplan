@@ -1,4 +1,20 @@
 
+# ------------------ Augment Data with Function + Region (Demo) ------------------
+# You would replace this with real metadata if available in the future
+import numpy as np
+functions = {
+    "CS": "Customer Success", "Customer Success & Solutions": "Customer Success", "Marketing": "Marketing",
+    "ProServ": "Professional Services", "Sales": "Sales", "Accounting": "G&A", "Biz Ops & Prog Mgmt": "G&A",
+    "Finance": "G&A", "Legal": "G&A", "Ops & Admin": "G&A", "Employee Experience": "G&A",
+    "People Operations": "HR", "Recruiting": "HR", "Workplace": "G&A", "Allos": "R&D",
+    "COGS ops": "R&D", "Eng": "R&D", "G&A Biz sys": "G&A", "Prod": "Product",
+    "R&D biz sys": "R&D", "Sales Biz sys": "Sales", "Machine Learning": "R&D"
+}
+regions = ["US", "EMEA", "APAC"]
+df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other")
+df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))  # Simulated region for now
+
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -45,7 +61,7 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 
 # --------------- Sidebar Navigation ----------------
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview"])
+page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview", "Success Metrics"])
 
 # --------------- Page 1: Headcount Adjustments ----------------
 if page == "Headcount Adjustments":
@@ -90,54 +106,50 @@ if page == "Adjusted Hiring Goals":
     st.plotly_chart(chart)
 
 
+
 # --------------- Page 3: Recruiter Capacity Model ----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity Model")
-    st.markdown("Plan recruiter bandwidth by quarter based on target hires, available weeks, and productivity.")
+    st.markdown("Forecast recruiter bandwidth vs hiring demand with built-in role difficulty and quarterly needs.")
 
-    hiring_mode = st.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"], horizontal=True)
     effective_weeks = st.slider("Weeks Remaining in Quarter", 1, 52, 13)
 
-    st.markdown("### Recruiter Productivity (Hires per Recruiter per Week)")
-    speed_inputs = {}
-    for alloc in df_allocation_summary["Allocation"].unique():
-        speed_inputs[alloc] = st.number_input(f"{alloc} Speed", min_value=0.1, value=0.6, step=0.1)
+    st.markdown("### Recruiter Productivity (Hires per Recruiter per Quarter by Level)")
+    levels = [1, 2, 3, 4, 5, 6, 7, 8]
+    level_speed = {}
+    for lvl in levels:
+        default = 10 if lvl <= 5 else 5 if lvl <= 7 else 2
+        level_speed[lvl] = st.number_input(f"Level {lvl}", min_value=1, value=default, step=1)
 
-    st.markdown("### Recruiters Available")
+    st.markdown("### Recruiters Available per Allocation")
     available_inputs = {}
     for alloc in df_allocation_summary["Allocation"].unique():
         available_inputs[alloc] = st.number_input(f"{alloc} Recruiters", min_value=0, value=1)
 
-    hiring_quarters = {}
-    if hiring_mode == "Use % Distribution":
-        for alloc in df_allocation_summary["Allocation"].unique():
-            col1, col2, col3, col4 = st.columns(4)
-            with col1: q1 = st.slider(f"{alloc} Q1 %", 0, 100, 25, 1, key=f"{alloc}_q1")
-            with col2: q2 = st.slider(f"{alloc} Q2 %", 0, 100, 25, 1, key=f"{alloc}_q2")
-            with col3: q3 = st.slider(f"{alloc} Q3 %", 0, 100, 25, 1, key=f"{alloc}_q3")
-            with col4: q4 = st.slider(f"{alloc} Q4 %", 0, 100, 25, 1, key=f"{alloc}_q4")
-            total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == alloc, "Final_Hiring_Target"].values[0]
-            hiring_quarters[alloc] = [round(total * (q / 100)) for q in [q1, q2, q3, q4]]
-    else:
-        for alloc in df_allocation_summary["Allocation"].unique():
-            col1, col2, col3, col4 = st.columns(4)
-            with col1: q1 = st.number_input(f"{alloc} Q1 hires", min_value=0, value=5, key=f"{alloc}_m_q1")
-            with col2: q2 = st.number_input(f"{alloc} Q2 hires", min_value=0, value=5, key=f"{alloc}_m_q2")
-            with col3: q3 = st.number_input(f"{alloc} Q3 hires", min_value=0, value=5, key=f"{alloc}_m_q3")
-            with col4: q4 = st.number_input(f"{alloc} Q4 hires", min_value=0, value=5, key=f"{alloc}_m_q4")
-            hiring_quarters[alloc] = [q1, q2, q3, q4]
+    # Assume 25% per quarter auto-distribution if % mode selected
+    auto_quarters = {}
+    for alloc in df_allocation_summary["Allocation"].unique():
+        total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == alloc, "Final_Hiring_Target"].values[0]
+        per_q = round(total / 4)
+        auto_quarters[alloc] = [per_q] * 4
 
-    df_hiring = pd.DataFrame.from_dict(hiring_quarters, orient='index', columns=["Q1", "Q2", "Q3", "Q4"])
+    df_hiring = pd.DataFrame.from_dict(auto_quarters, orient='index', columns=["Q1", "Q2", "Q3", "Q4"])
     df_hiring.insert(0, "Allocation", df_hiring.index)
-    st.subheader("🎯 Hiring Goals per Quarter")
+    st.subheader("🎯 Auto-Distributed Hiring Goals per Quarter (25%)")
     st.dataframe(df_hiring)
+
+    st.markdown("### Avg Role Level per Allocation")
+    role_level_inputs = {}
+    for alloc in df_allocation_summary["Allocation"].unique():
+        role_level_inputs[alloc] = st.slider(f"{alloc} Avg Level", 1, 8, 4)
 
     recruiter_summary = []
     for alloc in df_hiring["Allocation"]:
         hires = df_hiring.loc[alloc, ["Q1", "Q2", "Q3", "Q4"]].values
-        speed = speed_inputs.get(alloc, 0.6)
+        level = role_level_inputs.get(alloc, 4)
+        speed = level_speed.get(level, 10)
         available = available_inputs.get(alloc, 1)
-        needed = [round(h / (speed * effective_weeks), 1) if speed > 0 else 0 for h in hires]
+        needed = [round(h / speed, 1) for h in hires]
         status = ["✅" if available >= n else f"❌ +{round(n - available, 1)}" for n in needed]
         recruiter_summary.append((alloc, *needed, *status))
 
@@ -145,7 +157,7 @@ if page == "Recruiter Capacity Model":
                     "Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"]
     df_summary = pd.DataFrame(recruiter_summary, columns=summary_cols)
 
-    st.subheader("🧮 Recruiter Needs and Status")
+    st.subheader("🧮 Recruiter Needs and Status by Quarter")
     st.dataframe(df_summary)
 
 
@@ -165,3 +177,26 @@ if page == "Finance Overview":
     st.subheader("📉 Change Summary (Bar Chart)")
     fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
     st.plotly_chart(fig)
+
+
+# --------------- Page 5: Success Metrics ----------------
+if page == "Success Metrics":
+    st.title("📊 Success Metrics & TA Benchmarks")
+
+    st.markdown("These metrics help evaluate team performance and guide workforce strategy.")
+
+    metrics_data = {
+        "Metric": [
+            "Avg Hires per Recruiter per Quarter",
+            "Sourcer-to-Recruiter Ratio",
+            "Coordinator Load (Reqs per Coordinator)",
+            "Avg Time-to-Fill (days)",
+            "Offer Acceptance Rate (%)"
+        ],
+        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
+        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
+    }
+
+    df_metrics = pd.DataFrame(metrics_data)
+    st.dataframe(df_metrics)
+    st.info("Benchmarks are general estimates. Customize to your organization as needed.")
