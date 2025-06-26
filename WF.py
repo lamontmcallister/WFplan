@@ -1,19 +1,4 @@
 
-# ------------------ Augment Data with Function + Region (Demo) ------------------
-# You would replace this with real metadata if available in the future
-import numpy as np
-functions = {
-    "CS": "Customer Success", "Customer Success & Solutions": "Customer Success", "Marketing": "Marketing",
-    "ProServ": "Professional Services", "Sales": "Sales", "Accounting": "G&A", "Biz Ops & Prog Mgmt": "G&A",
-    "Finance": "G&A", "Legal": "G&A", "Ops & Admin": "G&A", "Employee Experience": "G&A",
-    "People Operations": "HR", "Recruiting": "HR", "Workplace": "G&A", "Allos": "R&D",
-    "COGS ops": "R&D", "Eng": "R&D", "G&A Biz sys": "G&A", "Prod": "Product",
-    "R&D biz sys": "R&D", "Sales Biz sys": "Sales", "Machine Learning": "R&D"
-}
-regions = ["US", "EMEA", "APAC"]
-df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other")
-df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))  # Simulated region for now
-
 
 import streamlit as st
 import pandas as pd
@@ -50,6 +35,21 @@ df_headcount = st.session_state.headcount_data
 df_headcount["Total Headcount"] = df_headcount[
     ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
 ].sum(axis=1)
+
+# ------------------ Augment Data with Function + Region ------------------
+import numpy as np
+functions = {
+    "CS": "Customer Success", "Customer Success & Solutions": "Customer Success", "Marketing": "Marketing",
+    "ProServ": "Professional Services", "Sales": "Sales", "Accounting": "G&A", "Biz Ops & Prog Mgmt": "G&A",
+    "Finance": "G&A", "Legal": "G&A", "Ops & Admin": "G&A", "Employee Experience": "G&A",
+    "People Operations": "HR", "Recruiting": "HR", "Workplace": "G&A", "Allos": "R&D",
+    "COGS ops": "R&D", "Eng": "R&D", "G&A Biz sys": "G&A", "Prod": "Product",
+    "R&D biz sys": "R&D", "Sales Biz sys": "Sales", "Machine Learning": "R&D"
+}
+regions = ["US", "EMEA", "APAC"]
+df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other")
+df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))
+
 
 # ------------------ Augment Data with Function + Region ------------------
 functions = {
