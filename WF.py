@@ -216,6 +216,11 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept_quarter" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
+    all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
+    unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
+    subdept_labels = [f"{a} – {s}" for (a, s) in unique_sub_depts]
+    selected_labels = st.multiselect("Filter by Sub-Department", options=subdept_labels, default=subdept_labels)
+
         recruiter_rows = []
 
         all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
@@ -240,6 +245,8 @@ if page == "Recruiter Capacity Model":
                         )
 
         for (alloc, sub) in unique_sub_depts:
+            if f"{alloc} – {sub}" not in selected_labels:
+                continue
             sub_label = f"{alloc} – {sub}"
             assigned = st.session_state.recruiters_assigned_subdept[sub_label]
             for qtr in quarters:
