@@ -329,13 +329,13 @@ if page == "Success Metrics":
 
 # ----------------- Page: Welcome to Pure Storage -----------------
 
-
-
-
-
-
 if page == "Welcome to Pure Storage":
-    st.title("Pure Storage Workforce Planning Dashboard")
-    st.markdown("Align Talent, Finance, and Recruiting around data-backed plans.")
+    st.title("📊 Pure Storage Workforce Planning Dashboard")
+    st.markdown("""
+    Welcome to the Pure Storage capacity model.  
+    This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.
 
+    Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.
+
+    _Let’s build smarter, faster, and more strategically._
     """)
