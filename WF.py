@@ -335,6 +335,7 @@ if page == "Success Metrics":
     st.info("Benchmarks are general estimates. Customize to your organization as needed.")
 
 
+
 # ----------------- Page: Welcome to Pure Storage -----------------
 if page == "Welcome to Pure Storage":
     st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
@@ -367,21 +368,13 @@ if page == "Welcome to Pure Storage":
     st.markdown("""
         <div style='background: linear-gradient(90deg, #ff4b2b, #ff416c); padding: 2rem; border-radius: 0 0 20px 20px;'>
             <h1 style='color: white; font-size: 2.5rem;'>Welcome to the Workforce Planning Portal</h1>
-            <p style='color: white; font-size: 1.1rem;'>Find insights. Build smarter headcount plans. Forecast with confidence.</p>
+            <p style='color: white; font-size: 1.1rem;'>This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.</p>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 🔍 Quick Access")
-    st.text_input("Search for teams, headcount plans, or dashboards...", placeholder="e.g., Marketing Q2 forecast")
-
-    st.markdown("### 📂 Browse by Section")
-    cols = st.columns(3)
-    with cols[0]:
-        st.button("📊 Headcount Adjustments")
-        st.button("📈 Forecasting")
-    with cols[1]:
-        st.button("🧮 Recruiter Capacity")
-        st.button("📌 Hiring Plan by Level")
-    with cols[2]:
-        st.button("📉 Finance Overview")
-        st.button("📊 Success Metrics")
+    st.markdown("""
+        <div style='padding: 2rem 0 1rem 0;'>
+            <p style='color: white; font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
+            <p style='color: white; font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically.</p>
+        </div>
+    """, unsafe_allow_html=True)
