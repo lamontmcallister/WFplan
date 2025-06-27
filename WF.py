@@ -37,7 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.set_page_config(page_title="Recruiting Dashboard", layout="wide</span>
+st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # ----------------- Load or initialize data -----------------
 if "headcount_data" not in st.session_state:
@@ -79,10 +79,10 @@ functions = {
     "R&D biz sys": "R&D", "Sales Biz sys": "Sales", "Machine Learning": "R&D"
 }
 regions = ["US", "EMEA", "APAC"]
-df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other</span>
+df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other")
 df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))
 
-df_allocation_summary = df_headcount.groupby("Allocation</span>.sum(numeric_only=True).reset_index()
+df_allocation_summary = df_headcount.groupby("Allocation").sum(numeric_only=True).reset_index()
 default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
 df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
     lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
@@ -91,7 +91,7 @@ df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
 df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
 # ----------------- Sidebar Navigation -----------------
-st.sidebar.title("Navigation</span>
+st.sidebar.title("Navigation")
 
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
@@ -110,8 +110,8 @@ page = st.sidebar.radio("Go to", [
 
 # ----------------- Page: Hiring Plan by Level -----------------
 if page == "   └ Hiring Plan by Level":
-    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter</span>
-    st.markdown("Define planned hires per level by department and quarter.</span>
+    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter")
+    st.markdown("Define planned hires per level by department and quarter.")
 
     levels = list(range(1, 9))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
@@ -128,7 +128,7 @@ if page == "   └ Hiring Plan by Level":
     selected_sub = st.selectbox("Select Sub-Department", sub_options)
     selected_qtr = st.selectbox("Select Quarter", quarters)
 
-    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}</span>
+    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}")
     cols = st.columns(len(levels))
     for i, lvl in enumerate(levels):
         with cols[i]:
@@ -139,7 +139,7 @@ if page == "   └ Hiring Plan by Level":
                 key=key
             )
 
-    if st.checkbox("Show full hiring plan table</span>:
+    if st.checkbox("Show full hiring plan table"):
         full_table_data = []
         for (alloc, sub, qtr), level_counts in st.session_state.roles_by_level_subdept_quarter.items():
             full_table_data.append({
@@ -152,11 +152,11 @@ if page == "   └ Hiring Plan by Level":
         st.dataframe(df_roles_by_subdept_level)
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
-    st.title("Hiring Speed Settings</span>
-    st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.</span>
+    st.title("Hiring Speed Settings")
+    st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
 
-    with st.expander("ℹ️ How to Use This Section</span>:
-        st.markdown( "Set the expected time-to-hire in days for different role levels within each sub-department. These settings affect the forecast model.</span>
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown( "Set the expected time-to-hire in days for different role levels within each sub-department. These settings affect the forecast model.")
     
     level_bands = {
         "L1–4": list(range(1, 5)),
@@ -181,9 +181,9 @@ if page == "   └ Hiring Speed Settings":
                     if not band_data.empty:
                         avg_time = round(band_data["Time to Hire"].mean())
                         st.session_state.speed_settings[dept][band_name] = avg_time
-            st.success("Historical time-to-hire data applied.</span>
+            st.success("Historical time-to-hire data applied.")
         except Exception as e:
-            st.error(f"Failed to process CSV: {e}</span>
+            st.error(f"Failed to process CSV: {e}")
 
     selected_dept = st.selectbox("Select a Department", sub_depts)
     st.subheader(selected_dept)
@@ -198,7 +198,7 @@ if page == "   └ Hiring Speed Settings":
                 step=1, key=key
             )
 
-    st.success("Time-to-hire by sub-department and level band saved to state.</span>
+    st.success("Time-to-hire by sub-department and level band saved to state.")
 
 
 
@@ -212,18 +212,18 @@ if page == "   └ Hiring Speed Settings":
 
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
-    st.title("Recruiter Capacity Model</span>
-    st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.</span>
+    st.title("Recruiter Capacity Model")
+    st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
 
-    with st.expander("ℹ️ How to Use This Section</span>:
-        st.markdown( "Use this view to assign recruiter headcount by sub-department and compare against calculated needs by quarter. Filter by allocation to focus in.</span>
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown( "Use this view to assign recruiter headcount by sub-department and compare against calculated needs by quarter. Filter by allocation to focus in.")
     
     selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
 
     if "roles_by_level_subdept_quarter" not in st.session_state:
-        st.warning("Please complete the Hiring Plan by Level first.</span>
+        st.warning("Please complete the Hiring Plan by Level first.")
     else:
         recruiter_rows = []
 
@@ -237,7 +237,7 @@ if page == "Recruiter Capacity Model":
 
         alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
         for alloc in alloc_groups:
-            with st.expander(f"📁 {alloc}</span>:
+            with st.expander(f"📁 {alloc}"):
                 for (a, s) in sorted(unique_sub_depts):
                     if a == alloc:
                         label = f"{s}"
@@ -270,8 +270,8 @@ if page == "Recruiter Capacity Model":
         st.dataframe(df_recruiter_need, use_container_width=True)
 # ----------------- Page: Forecasting -----------------
 if page == "Forecasting":
-    st.title("📈 Hiring Forecast</span>
-    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept, Level, and Quarter.</span>
+    st.title("📈 Hiring Forecast")
+    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept, Level, and Quarter.")
 
     level_bands = {
         "L1–4": list(range(1, 5)),
@@ -280,13 +280,13 @@ if page == "Forecasting":
     }
 
     if "roles_by_level_subdept_quarter" not in st.session_state or "speed_settings" not in st.session_state:
-        st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.</span>
+        st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
     else:
         forecast_rows = []
         for (alloc, sub, qtr), levels in st.session_state.roles_by_level_subdept_quarter.items():
             for lvl, count in levels.items():
                 if count > 0:
-                    band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4</span>
+                    band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4")
                     speed = st.session_state.speed_settings.get(sub, {}).get(band, 30)
                     velocity = round(90 / speed * count, 2)
                     forecast_rows.append((alloc, sub, qtr, lvl, count, speed, velocity))
@@ -297,19 +297,19 @@ if page == "Forecasting":
         st.dataframe(df_forecast, use_container_width=True)
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
-    st.title("Headcount Adjustments</span>
-    st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.</span>
+    st.title("Headcount Adjustments")
+    st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
 
-    with st.expander("ℹ️ How to Use This Section</span>:
-        st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.</span>
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
     
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic</span>
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
     st.session_state.headcount_data = edited_df
 
-    df_allocation_summary = edited_df.groupby("Allocation</span>.sum(numeric_only=True).reset_index()
+    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
         lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
         axis=1
@@ -317,7 +317,7 @@ if page == "Headcount Adjustments":
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
     
-    st.subheader("📌 Summary by Allocation</span>
+    st.subheader("📌 Summary by Allocation")
 
     manual_rates = {}
     for alloc in df_allocation_summary["Allocation"]:
@@ -334,8 +334,8 @@ if page == "Headcount Adjustments":
 
         # ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
-    st.title("📈 Adjusted Hiring Goals</span>
-    st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation</span>
+    st.title("📈 Adjusted Hiring Goals")
+    st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
     selected_allocation = st.sidebar.selectbox("Choose Allocation", df_allocation_summary["Allocation"].unique())
     new_rate = st.sidebar.slider("Attrition Rate (%)", 0, 50, int(default_attrition_rates[selected_allocation] * 100), 1)
     default_attrition_rates[selected_allocation] = new_rate / 100
@@ -346,25 +346,25 @@ if page == "Adjusted Hiring Goals":
     )
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-    st.subheader("📌 Final Hiring Targets After Attrition</span>
+    st.subheader("📌 Final Hiring Targets After Attrition")
     st.dataframe(df_allocation_summary)
 
-    st.subheader("📉 Final Hiring Targets by Quarter (Line Chart)</span>
+    st.subheader("📉 Final Hiring Targets by Quarter (Line Chart)")
     chart_data = df_allocation_summary.copy()
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires</span>
+    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
     # --------------- Page 4: Finance Overview ----------------
 if page == "Finance Overview":
-    st.title("💰 Finance Overview</span>
+    st.title("💰 Finance Overview")
     original_df = st.session_state.original_headcount
     current_df = st.session_state.headcount_data
     delta_df = current_df.copy()
     delta_df["Original Total"] = original_df["Total Headcount"]
     delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
-    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No</span>
+    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
 
-    st.subheader("📊 Headcount Changes by Sub-Dept</span>
+    st.subheader("📊 Headcount Changes by Sub-Dept")
     selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
     filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
     st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
@@ -373,7 +373,7 @@ if page == "Finance Overview":
 
 # ----------------- Page: Welcome to Pure Storage -----------------
 if page == "Welcome to Pure Storage":
-    st.set_page_config(page_title="Workforce Planning Portal", layout="wide</span>
+    st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
     st.markdown("""
         <style>
@@ -415,10 +415,10 @@ if page == "Welcome to Pure Storage":
     """, unsafe_allow_html=True)
 
 if page == "Success Metrics":
-    st.title("📊 Success Metrics & TA Benchmarks</span>
+    st.title("📊 Success Metrics & TA Benchmarks")
 
-    with st.expander("ℹ️ How to Use This Section</span>:
-        st.markdown( "This view compares current totals against original planned values. Use it to identify departments that may need finance approval for added headcount.</span>
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown( "This view compares current totals against original planned values. Use it to identify departments that may need finance approval for added headcount.")
 
     metrics_data = {
         "Metric": [
