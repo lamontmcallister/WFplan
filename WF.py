@@ -184,14 +184,16 @@ if page == "   └ Hiring Speed Settings":
 
     selected_dept = st.selectbox("Select a Department", sub_depts)
     st.subheader(selected_dept)
-            cols = st.columns(len(level_bands))
-            for i, (band, _) in enumerate(level_bands.items()):
+
+    cols = st.columns(len(level_bands))
+    for i, (band, _) in enumerate(level_bands.items()):
         with cols[i]:
             key = f"{selected_dept}_{band}"
-                st.session_state.speed_settings[selected_dept][band] = st.number_input(
-                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[selected_dept][band],
-                    step=1, key=key
-                )
+            st.session_state.speed_settings[selected_dept][band] = st.number_input(
+                f"{band} (days)", min_value=1, max_value=180,
+                value=st.session_state.speed_settings[selected_dept][band],
+                step=1, key=key
+            )
 
     st.success("Time-to-hire by sub-department and level band saved to state.")
 
