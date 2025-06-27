@@ -3,6 +3,40 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+
+# ----------------- Global Styling -----------------
+st.markdown("""
+    <style>
+        body, .css-18e3th9, .css-1d391kg {
+            background-color: #1e1e1e !important;
+            color: white !important;
+        }
+        .stButton > button {
+            background-color: #ff4b2b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            font-size: 1rem;
+            border-radius: 6px;
+        }
+        .stButton > button:hover {
+            background-color: #ff6b4b;
+            transition: 0.3s;
+        }
+        .stTextInput > div > input,
+        .stNumberInput input {
+            background-color: #333 !important;
+            color: white !important;
+        }
+        .stDataFrame, .stDataTable, .stMarkdown {
+            color: white !important;
+        }
+        .st-expanderContent {
+            background-color: #222 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # ----------------- Load or initialize data -----------------
