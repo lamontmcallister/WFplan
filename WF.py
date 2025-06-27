@@ -388,6 +388,18 @@ if page == "Welcome to Pure Storage":
             <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
         </div>
     """, unsafe_allow_html=True)
+        <div style='background: linear-gradient(90deg, #ff4b2b, #ff416c); padding: 2rem; border-radius: 0 0 20px 20px;'>
+            <h1 style='color: white; font-size: 2.5rem;'>Welcome to the Workforce Planning Portal</h1>
+            <p style='color: white; font-size: 1.1rem;'>This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div style='padding: 2rem 0 1rem 0;'>
+            <p style='font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
+            <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
+        </div>
+    """, unsafe_allow_html=True)
         <style>
             body, .css-18e3th9, .css-1d391kg {
                 background-color: #1e1e1e !important;
