@@ -183,9 +183,9 @@ if page == "   └ Hiring Speed Settings":
             st.error(f"Failed to process CSV: {e}")
 
     selected_dept = st.selectbox("Select a Department", sub_depts)
-st.subheader(selected_dept)
-        cols = st.columns(len(level_bands))
-        for i, (band, _) in enumerate(level_bands.items()):
+    st.subheader(selected_dept)
+            cols = st.columns(len(level_bands))
+            for i, (band, _) in enumerate(level_bands.items()):
         with cols[i]:
             key = f"{selected_dept}_{band}"
                 st.session_state.speed_settings[selected_dept][band] = st.number_input(
