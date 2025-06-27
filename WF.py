@@ -76,7 +76,7 @@ page = st.sidebar.radio("Go to", [
 
 
 # ----------------- Page: Hiring Plan by Level -----------------
-if page == "Hiring Plan by Level":
+if page == "   └ Hiring Plan by Level":
     st.title("📌 Hiring Plan by Level & Sub-Department")
     st.markdown("Select an allocation and sub-department to define role counts per level.")
 
@@ -115,7 +115,7 @@ if page == "Hiring Plan by Level":
 
 
 # ----------------- Page: Hiring Speed Settings -----------------
-if page == "Hiring Speed Settings":
+if page == "   └ Hiring Speed Settings":
     st.title("⏱️ Hiring Speed Settings by Sub-Department")
     st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
 
