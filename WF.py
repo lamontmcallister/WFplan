@@ -172,7 +172,15 @@ if page == "   └ Hiring Speed Settings":
 
 
 # ----------------- Page: Recruiter Capacity Model -----------------
+
 if page == "Recruiter Capacity Model":
+    st.title("🧮 Recruiter Capacity by Quarter")
+    st.markdown("Assign recruiter headcount by sub-department. Use the dropdown to filter by Allocation.")
+
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
+
+    selected_allocation = st.selectbox("Filter by Allocation", sorted(set([a for (a, s, q) in st.session_state.roles_by_level_subdept_quarter.keys()])))
     st.title("🧮 Recruiter Capacity by Quarter")
     st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
 
@@ -251,7 +259,14 @@ if page == "Forecasting":
         ])
         st.dataframe(df_forecast, use_container_width=True)
 # ----------------- Page: Headcount Adjustments -----------------
+
 if page == "Headcount Adjustments":
+    st.title("📊 Headcount Adjustments")
+    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+
+    # Allow attrition rate adjustment
+    for alloc in df_allocation_summary["Allocation"].unique():
+        default_attrition_rates[alloc] = st.sidebar.slider(f"Attrition Rate for {alloc} (%)", 0, 50, int(default_attrition_rates[alloc]*100)) / 100
     st.title("📊 Headcount Adjustments")
     st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
 
@@ -271,12 +286,7 @@ if page == "Headcount Adjustments":
     st.subheader("📌 Summary by Allocation")
     st.dataframe(df_allocation_summary)
 
-    st.subheader("📈 Hiring Goals by Quarter (Line Chart)")
-    chart_data = df_allocation_summary.copy()
-    for q in ["Q1", "Q2", "Q3", "Q4"]:
-        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    # ----------------- Page: Adjusted Hiring Goals -----------------
+        # ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
     st.title("📈 Adjusted Hiring Goals")
     st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
@@ -311,7 +321,6 @@ if page == "Finance Overview":
     st.subheader("📊 Headcount Changes by Sub-Dept")
     st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
-    st.subheader("📉 Change Summary (Bar Chart)")
     # --------------- Page 5: Success Metrics ----------------
 
 # ----------------- Page: Success Metrics -----------------
