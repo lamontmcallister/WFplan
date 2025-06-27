@@ -62,91 +62,117 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
     "Forecasting",
     "Hiring Speed Settings",
-    "Headcount Adjustments",
-    "Adjusted Hiring Goals",
-    "Recruiter Capacity Model",
-    "Success Metrics",
-    "Hiring Plan by Level"
+    "Hiring Plan by Level",
 ])
 
-# ----------------- Page 5: Hiring Plan by Level -----------------
+# ----------------- Page: Hiring Plan by Level -----------------
 if page == "Hiring Plan by Level":
-    st.title("📌 Hiring Plan by Level")
-    st.markdown("Manually define how many roles you're hiring for at each level per allocation.")
+    st.title("📌 Hiring Plan by Level & Sub-Department")
+    st.markdown("Define how many roles you're hiring for at each level per sub-department within each allocation.")
 
     levels = list(range(1, 9))
-    allocations = df_allocation_summary["Allocation"].unique().tolist()
+    subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
 
-    if "roles_by_level" not in st.session_state:
-        st.session_state.roles_by_level = {
-            alloc: {lvl: 0 for lvl in levels} for alloc in allocations
+    if "roles_by_level_subdept" not in st.session_state:
+        st.session_state.roles_by_level_subdept = {
+            (row["Allocation"], row["Sub-Dept"]): {lvl: 0 for lvl in levels}
+            for _, row in subdept_df.iterrows()
         }
 
-    updated_data = []
-    for alloc in allocations:
-        st.subheader(f"{alloc}")
+    full_table_data = []
+    for _, row in subdept_df.iterrows():
+        alloc = row["Allocation"]
+        sub = row["Sub-Dept"]
+        st.subheader(f"{alloc} – {sub}")
         cols = st.columns(len(levels))
         for i, lvl in enumerate(levels):
             with cols[i]:
-                st.session_state.roles_by_level[alloc][lvl] = st.number_input(
-                    f"Level {lvl}", min_value=0, value=st.session_state.roles_by_level[alloc][lvl], key=f"{alloc}_L{lvl}"
+                key = f"{alloc}_{sub}_L{lvl}"
+                st.session_state.roles_by_level_subdept[(alloc, sub)][lvl] = st.number_input(
+                    f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(alloc, sub)][lvl], key=key
                 )
-        updated_data.append({
+        full_table_data.append({
             "Allocation": alloc,
-            **st.session_state.roles_by_level[alloc]
+            "Sub-Dept": sub,
+            **st.session_state.roles_by_level_subdept[(alloc, sub)]
         })
 
-    df_roles_by_level = pd.DataFrame(updated_data)
-    st.dataframe(df_roles_by_level)
+    df_roles_by_subdept_level = pd.DataFrame(full_table_data)
+    st.dataframe(df_roles_by_subdept_level)
 
-    st.success("Recruiter Capacity Model will now use this level breakdown for load calculation.")
+    st.success("This plan feeds into recruiter capacity and forecasting calculations.")
 
-# ----------------- Page 6: Hiring Speed Settings -----------------
+# ----------------- Page: Hiring Speed Settings -----------------
 if page == "Hiring Speed Settings":
-    st.title("⏱️ Hiring Speed Settings")
-    st.markdown("Set time-to-hire estimates by level and/or sub-department.")
+    st.title("⏱️ Hiring Speed Settings by Sub-Department")
+    st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
 
-    levels = list(range(1, 9))
+    level_bands = {
+        "L1–4": list(range(1, 5)),
+        "L5–7": list(range(5, 8)),
+        "L8–10": list(range(8, 11))
+    }
     sub_depts = df_headcount["Sub-Dept"].unique().tolist()
 
-    if "time_to_hire_by_level" not in st.session_state:
-        st.session_state.time_to_hire_by_level = {lvl: 30 for lvl in levels}
-    if "time_to_hire_by_sub_dept" not in st.session_state:
-        st.session_state.time_to_hire_by_sub_dept = {dept: 30 for dept in sub_depts}
+    if "speed_settings" not in st.session_state:
+        st.session_state.speed_settings = {
+            dept: {band: 30 for band in level_bands} for dept in sub_depts
+        }
 
-    st.subheader("📏 Time to Hire by Level")
-    cols_lvl = st.columns(len(levels))
-    for i, lvl in enumerate(levels):
-        with cols_lvl[i]:
-            st.session_state.time_to_hire_by_level[lvl] = st.number_input(
-                f"L{lvl}", min_value=1, max_value=120, value=st.session_state.time_to_hire_by_level[lvl], step=1, key=f"time_lvl_{lvl}"
-            )
+    uploaded_file = st.file_uploader("Optional: Upload historical time-to-hire CSV", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            hist_df = pd.read_csv(uploaded_file)
+            for dept in sub_depts:
+                dept_data = hist_df[hist_df["Sub-Dept"] == dept]
+                for band_name, band_levels in level_bands.items():
+                    band_data = dept_data[dept_data["Level"].isin(band_levels)]
+                    if not band_data.empty:
+                        avg_time = round(band_data["Time to Hire"].mean())
+                        st.session_state.speed_settings[dept][band_name] = avg_time
+            st.success("Historical time-to-hire data applied.")
+        except Exception as e:
+            st.error(f"Failed to process CSV: {e}")
 
-    st.subheader("🏢 Time to Hire by Sub-Department")
     for dept in sub_depts:
-        st.session_state.time_to_hire_by_sub_dept[dept] = st.number_input(
-            f"{dept}", min_value=1, max_value=120, value=st.session_state.time_to_hire_by_sub_dept[dept], step=1, key=f"time_dept_{dept}"
-        )
+        st.subheader(dept)
+        cols = st.columns(len(level_bands))
+        for i, (band, _) in enumerate(level_bands.items()):
+            with cols[i]:
+                key = f"{dept}_{band}"
+                st.session_state.speed_settings[dept][band] = st.number_input(
+                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[dept][band],
+                    step=1, key=key
+                )
 
-    st.success("These inputs will be available for future forecasting and process optimization features.")
+    st.success("Time-to-hire by sub-department and level band saved to state.")
 
-# ----------------- Page 7: Forecasting -----------------
+# ----------------- Page: Forecasting -----------------
 if page == "Forecasting":
     st.title("📈 Hiring Forecast")
-    st.markdown("Forecast hiring velocity and recruiter deployment using time-to-hire inputs.")
+    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept and Level.")
 
-    if "roles_by_level" not in st.session_state or "time_to_hire_by_level" not in st.session_state:
+    level_bands = {
+        "L1–4": list(range(1, 5)),
+        "L5–7": list(range(5, 8)),
+        "L8–10": list(range(8, 11))
+    }
+
+    if "roles_by_level_subdept" not in st.session_state or "speed_settings" not in st.session_state:
         st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
     else:
         forecast_rows = []
-        for alloc, levels in st.session_state.roles_by_level.items():
+        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
             for lvl, count in levels.items():
                 if count > 0:
-                    speed = st.session_state.time_to_hire_by_level.get(lvl, 30)
-                    velocity = round(30 / speed * count, 2)  # how many roles filled per 30-day cycle
-                    forecast_rows.append((alloc, lvl, count, speed, velocity))
+                    # Determine band
+                    band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4")
+                    speed = st.session_state.speed_settings.get(sub, {}).get(band, 30)
+                    velocity = round(30 / speed * count, 2)
+                    forecast_rows.append((alloc, sub, lvl, count, speed, velocity))
 
-        df_forecast = pd.DataFrame(forecast_rows, columns=["Allocation", "Level", "Planned Roles", "Time to Hire (days)", "Monthly Hiring Velocity"])
-        st.dataframe(df_forecast)
-
-        st.markdown("This data can help plan recruiter deployment based on hiring difficulty and expected ramp.")
+        df_forecast = pd.DataFrame(forecast_rows, columns=[
+            "Allocation", "Sub-Dept", "Level", "Planned Roles", "Time to Hire (days)", "Monthly Hiring Velocity"
+        ])
+        st.dataframe(df_forecast, use_container_width=True)
+        st.info("Velocity is an estimate of how many roles can be filled monthly based on current hiring speed.")
