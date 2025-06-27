@@ -63,7 +63,6 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
-    "Adjusted Hiring Goals",
     "Hiring Plan by Level",
     "Recruiter Capacity Model",
     "Finance Overview",
@@ -319,9 +318,7 @@ if page == "Finance Overview":
     st.subheader("📊 Headcount Changes by Sub-Dept")
     st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
-    st.subheader("📉 Change Summary (Bar Chart)")
-    fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
-    st.plotly_chart(fig)
+    
 
 
 # --------------- Page 5: Success Metrics ----------------
