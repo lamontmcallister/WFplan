@@ -285,6 +285,7 @@ if page == "Forecasting":
         ])
         st.dataframe(df_forecast, use_container_width=True)
 
+
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
@@ -301,14 +302,7 @@ if page == "Headcount Adjustments":
     if "attrition_rates" not in st.session_state:
         st.session_state.attrition_rates = {alloc: 0.10 for alloc in df_allocation_summary["Allocation"].unique()}
 
-    st.markdown("### ⚙️ Adjust Attrition Rate by Allocation")
-    for alloc in df_allocation_summary["Allocation"]:
-        st.session_state.attrition_rates[alloc] = st.slider(
-            f"{alloc} Attrition Rate (%)", min_value=0, max_value=50,
-            value=int(st.session_state.attrition_rates.get(alloc, 0.10) * 100),
-            step=1, key=f"slider_{alloc}"
-        ) / 100
-
+    # Apply attrition rates from input
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
         lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
         axis=1
@@ -317,6 +311,23 @@ if page == "Headcount Adjustments":
 
     st.subheader("📌 Summary by Allocation")
     st.dataframe(df_allocation_summary)
+
+    st.subheader("⚙️ Adjust Attrition Rate per Allocation (as %)")
+    cols = st.columns(len(df_allocation_summary))
+    for i, alloc in enumerate(df_allocation_summary["Allocation"]):
+        with cols[i]:
+            st.session_state.attrition_rates[alloc] = st.number_input(
+                f"{alloc}", min_value=0.0, max_value=50.0,
+                value=st.session_state.attrition_rates.get(alloc, 0.10) * 100,
+                step=0.5, key=f"input_{alloc}"
+            ) / 100
+
+    # Recalculate with updated inputs
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
     st.subheader("📈 Hiring Goals by Quarter (Line Chart)")
     chart_data = df_allocation_summary.copy()
