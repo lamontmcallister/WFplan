@@ -60,116 +60,93 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
+    "Forecasting",
+    "Hiring Speed Settings",
     "Headcount Adjustments",
     "Adjusted Hiring Goals",
     "Recruiter Capacity Model",
-    "Success Metrics"
+    "Success Metrics",
+    "Hiring Plan by Level"
 ])
 
-# ----------------- Page 1: Headcount Adjustments -----------------
-if page == "Headcount Adjustments":
-    st.title("📊 Headcount Adjustments")
-    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+# ----------------- Page 5: Hiring Plan by Level -----------------
+if page == "Hiring Plan by Level":
+    st.title("📌 Hiring Plan by Level")
+    st.markdown("Manually define how many roles you're hiring for at each level per allocation.")
 
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
-    edited_df["Total Headcount"] = edited_df[
-        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-    ].sum(axis=1)
-    st.session_state.headcount_data = edited_df
+    levels = list(range(1, 9))
+    allocations = df_allocation_summary["Allocation"].unique().tolist()
 
-    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+    if "roles_by_level" not in st.session_state:
+        st.session_state.roles_by_level = {
+            alloc: {lvl: 0 for lvl in levels} for alloc in allocations
+        }
 
-    st.subheader("📌 Summary by Allocation")
-    st.dataframe(df_allocation_summary)
+    updated_data = []
+    for alloc in allocations:
+        st.subheader(f"{alloc}")
+        cols = st.columns(len(levels))
+        for i, lvl in enumerate(levels):
+            with cols[i]:
+                st.session_state.roles_by_level[alloc][lvl] = st.number_input(
+                    f"Level {lvl}", min_value=0, value=st.session_state.roles_by_level[alloc][lvl], key=f"{alloc}_L{lvl}"
+                )
+        updated_data.append({
+            "Allocation": alloc,
+            **st.session_state.roles_by_level[alloc]
+        })
 
-    st.subheader("📈 Hiring Goals by Quarter (Line Chart)")
-    chart_data = df_allocation_summary.copy()
-    for q in ["Q1", "Q2", "Q3", "Q4"]:
-        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Quarterly Hiring Goals by Allocation")
-    st.plotly_chart(fig, use_container_width=True)
+    df_roles_by_level = pd.DataFrame(updated_data)
+    st.dataframe(df_roles_by_level)
 
+    st.success("Recruiter Capacity Model will now use this level breakdown for load calculation.")
 
-# ----------------- Page 2: Adjusted Hiring Goals -----------------
-if page == "Adjusted Hiring Goals":
-    st.title("📈 Adjusted Hiring Goals")
-    st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
-    selected_allocation = st.sidebar.selectbox("Choose Allocation", df_allocation_summary["Allocation"].unique())
-    new_rate = st.sidebar.slider("Attrition Rate (%)", 0, 50, int(default_attrition_rates[selected_allocation] * 100), 1)
-    default_attrition_rates[selected_allocation] = new_rate / 100
+# ----------------- Page 6: Hiring Speed Settings -----------------
+if page == "Hiring Speed Settings":
+    st.title("⏱️ Hiring Speed Settings")
+    st.markdown("Set time-to-hire estimates by level and/or sub-department.")
 
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+    levels = list(range(1, 9))
+    sub_depts = df_headcount["Sub-Dept"].unique().tolist()
 
-    st.subheader("📌 Final Hiring Targets After Attrition")
-    st.dataframe(df_allocation_summary)
+    if "time_to_hire_by_level" not in st.session_state:
+        st.session_state.time_to_hire_by_level = {lvl: 30 for lvl in levels}
+    if "time_to_hire_by_sub_dept" not in st.session_state:
+        st.session_state.time_to_hire_by_sub_dept = {dept: 30 for dept in sub_depts}
 
-    st.subheader("📉 Final Hiring Targets by Quarter (Line Chart)")
-    chart_data = df_allocation_summary.copy()
-    for q in ["Q1", "Q2", "Q3", "Q4"]:
-        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Final Hiring Targets by Quarter")
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("📏 Time to Hire by Level")
+    cols_lvl = st.columns(len(levels))
+    for i, lvl in enumerate(levels):
+        with cols_lvl[i]:
+            st.session_state.time_to_hire_by_level[lvl] = st.number_input(
+                f"L{lvl}", min_value=1, max_value=120, value=st.session_state.time_to_hire_by_level[lvl], step=1, key=f"time_lvl_{lvl}"
+            )
 
+    st.subheader("🏢 Time to Hire by Sub-Department")
+    for dept in sub_depts:
+        st.session_state.time_to_hire_by_sub_dept[dept] = st.number_input(
+            f"{dept}", min_value=1, max_value=120, value=st.session_state.time_to_hire_by_sub_dept[dept], step=1, key=f"time_dept_{dept}"
+        )
 
-# ----------------- Page 3: Recruiter Capacity Model -----------------
-if page == "Recruiter Capacity Model":
-    st.title("🧮 Recruiter Capacity by Quarter")
-    st.markdown("Track quarterly hiring needs and recruiter sufficiency by role level.")
+    st.success("These inputs will be available for future forecasting and process optimization features.")
 
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
+# ----------------- Page 7: Forecasting -----------------
+if page == "Forecasting":
+    st.title("📈 Hiring Forecast")
+    st.markdown("Forecast hiring velocity and recruiter deployment using time-to-hire inputs.")
 
-    summary_rows = []
-    for alloc in df_allocation_summary["Allocation"].unique():
-        col1, col2 = st.columns(2)
-        with col1:
-            avg_level = st.slider(f"{alloc} - Avg Role Level", 1, 8, 4, key=f"level_{alloc}")
-        with col2:
-            assigned = st.number_input(f"{alloc} - Recruiters Assigned", min_value=0, value=1, key=f"recruiters_{alloc}")
+    if "roles_by_level" not in st.session_state or "time_to_hire_by_level" not in st.session_state:
+        st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
+    else:
+        forecast_rows = []
+        for alloc, levels in st.session_state.roles_by_level.items():
+            for lvl, count in levels.items():
+                if count > 0:
+                    speed = st.session_state.time_to_hire_by_level.get(lvl, 30)
+                    velocity = round(30 / speed * count, 2)  # how many roles filled per 30-day cycle
+                    forecast_rows.append((alloc, lvl, count, speed, velocity))
 
-        hires_per_recruiter = level_productivity[avg_level]
-        total_roles = df_allocation_summary[df_allocation_summary["Allocation"] == alloc]["Final_Hiring_Target"].values[0]
-        for i, q in enumerate(quarters):
-            q_roles = total_roles * 0.25
-            needed = round(q_roles / hires_per_recruiter, 2)
-            gap = assigned - needed
-            status = "✅" if gap >= 0 else f"❌ +{abs(round(gap, 1))}"
-            summary_rows.append((alloc, q, q_roles, avg_level, hires_per_recruiter, needed, assigned, status))
+        df_forecast = pd.DataFrame(forecast_rows, columns=["Allocation", "Level", "Planned Roles", "Time to Hire (days)", "Monthly Hiring Velocity"])
+        st.dataframe(df_forecast)
 
-    df_summary = pd.DataFrame(summary_rows, columns=[
-        "Allocation", "Quarter", "Open Roles", "Avg Level", "Hires/Recruiter", "Recruiters Needed", "Assigned", "Status"
-    ])
-
-    st.dataframe(df_summary, use_container_width=True)
-
-
-# ----------------- Page 4: Success Metrics -----------------
-if page == "Success Metrics":
-    st.title("📊 Success Metrics & TA Benchmarks")
-
-    metrics_data = {
-        "Metric": [
-            "Avg Hires per Recruiter per Quarter",
-            "Sourcer-to-Recruiter Ratio",
-            "Coordinator Load (Reqs per Coordinator)",
-            "Avg Time-to-Fill (days)",
-            "Offer Acceptance Rate (%)"
-        ],
-        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
-        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
-    }
-
-    df_metrics = pd.DataFrame(metrics_data)
-    st.dataframe(df_metrics)
-    st.info("Benchmarks are general estimates. Customize to your organization as needed.")
+        st.markdown("This data can help plan recruiter deployment based on hiring difficulty and expected ramp.")
