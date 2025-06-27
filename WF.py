@@ -7,7 +7,31 @@ import numpy as np
 # ----------------- Global Styling -----------------
 st.markdown("""
     <style>
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+        .st-expanderContent {
+            background-color: #1c1c1c !important;
+            color: white !important;
+        }
+
     <style>
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+        .st-expanderContent {
+            background-color: #1c1c1c !important;
+            color: white !important;
+        }
+
         /* Expander label color and background */
         .streamlit-expanderHeader {
             background-color: #ff4b2b !important;  /* Orange */
@@ -394,7 +418,31 @@ if page == "Welcome to Pure Storage":
 
     st.markdown("""
         <style>
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+        .st-expanderContent {
+            background-color: #1c1c1c !important;
+            color: white !important;
+        }
+
     <style>
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+        .st-expanderContent {
+            background-color: #1c1c1c !important;
+            color: white !important;
+        }
+
         /* Expander label color and background */
         .streamlit-expanderHeader {
             background-color: #ff4b2b !important;  /* Orange */
