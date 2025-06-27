@@ -66,10 +66,11 @@ page = st.sidebar.radio("Go to", [
 ])
 
 
+
 # ----------------- Page: Hiring Plan by Level -----------------
 if page == "Hiring Plan by Level":
     st.title("📌 Hiring Plan by Level & Sub-Department")
-    st.markdown("Select a sub-department and define role counts per level.")
+    st.markdown("Select an allocation and sub-department to define role counts per level.")
 
     levels = list(range(1, 9))
     subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
@@ -80,19 +81,19 @@ if page == "Hiring Plan by Level":
             for _, row in subdept_df.iterrows()
         }
 
-    selected_sub = st.selectbox("Select Sub-Department", subdept_df["Sub-Dept"].unique())
-    matching_alloc = subdept_df[subdept_df["Sub-Dept"] == selected_sub]["Allocation"].values[0]
+    selected_alloc = st.selectbox("Select Allocation", subdept_df["Allocation"].unique())
+    sub_options = subdept_df[subdept_df["Allocation"] == selected_alloc]["Sub-Dept"].unique()
+    selected_sub = st.selectbox("Select Sub-Department", sub_options)
 
-    st.subheader(f"{matching_alloc} – {selected_sub}")
+    st.subheader(f"{selected_alloc} – {selected_sub}")
     cols = st.columns(len(levels))
     for i, lvl in enumerate(levels):
         with cols[i]:
-            key = f"{matching_alloc}_{selected_sub}_L{lvl}"
-            st.session_state.roles_by_level_subdept[(matching_alloc, selected_sub)][lvl] = st.number_input(
-                f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(matching_alloc, selected_sub)][lvl], key=key
+            key = f"{selected_alloc}_{selected_sub}_L{lvl}"
+            st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)][lvl] = st.number_input(
+                f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)][lvl], key=key
             )
 
-    # Optional view full table
     if st.checkbox("Show full hiring plan table"):
         full_table_data = []
         for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
@@ -149,6 +150,7 @@ if page == "Hiring Speed Settings":
                 )
 
     st.success("Time-to-hire by sub-department and level band saved to state.")
+
 
 
 # ----------------- Page: Recruiter Capacity Model -----------------
