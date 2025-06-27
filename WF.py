@@ -330,3 +330,204 @@ if page == "Headcount Adjustments":
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
     
+
+# ----------------- Page: Welcome to Pure Storage -----------------
+if page == "Welcome to Pure Storage":
+    st.markdown("""
+        <div style='background: linear-gradient(90deg, #ff4b2b, #ff416c); padding: 2rem; border-radius: 0 0 20px 20px;'>
+            <h1 style='color: white; font-size: 2.5rem;'>Welcome to the Workforce Planning Portal</h1>
+            <p style='color: white; font-size: 1.1rem;'>This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div style='padding: 2rem 0 1rem 0;'>
+            <p style='color: white; font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
+            <p style='color: white; font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically.</p>
+        </div>
+    """, unsafe_allow_html=True)
+# ----------------- Page: Hiring Speed Settings -----------------
+if page == "   └ Hiring Speed Settings":
+    st.title("⏱️ Hiring Speed Settings by Sub-Department")
+    st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
+
+    level_bands = {
+        "L1–4": list(range(1, 5)),
+        "L5–7": list(range(5, 8)),
+        "L8–10": list(range(8, 11))
+    }
+    sub_depts = df_headcount["Sub-Dept"].unique().tolist()
+
+    if "speed_settings" not in st.session_state:
+        st.session_state.speed_settings = {
+            dept: {band: 30 for band in level_bands} for dept in sub_depts
+        }
+
+    uploaded_file = st.file_uploader("Optional: Upload historical time-to-hire CSV", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            hist_df = pd.read_csv(uploaded_file)
+            selected_dept = st.selectbox('Select Sub-Department', sub_depts)
+    for dept in [selected_dept]:
+                dept_data = hist_df[hist_df["Sub-Dept"] == dept]
+                for band_name, band_levels in level_bands.items():
+                    band_data = dept_data[dept_data["Level"].isin(band_levels)]
+                    if not band_data.empty:
+                        avg_time = round(band_data["Time to Hire"].mean())
+                        st.session_state.speed_settings[dept][band_name] = avg_time
+            st.success("Historical time-to-hire data applied.")
+        except Exception as e:
+            st.error(f"Failed to process CSV: {e}")
+
+    selected_dept = st.selectbox('Select Sub-Department', sub_depts)
+    for dept in [selected_dept]:
+        st.subheader(dept)
+        cols = st.columns(len(level_bands))
+        for i, (band, _) in enumerate(level_bands.items()):
+            with cols[i]:
+                key = f"{dept}_{band}"
+                st.session_state.speed_settings[dept][band] = st.number_input(
+                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[dept][band],
+                    step=1, key=key
+                )
+
+    st.success("Time-to-hire by sub-department and level band saved to state.")
+
+
+
+
+
+
+
+
+
+
+
+# ----------------- Page: Recruiter Capacity Model -----------------
+if page == "Recruiter Capacity Model":
+    st.title("🧮 Recruiter Capacity by Quarter")
+    st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
+
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
+
+    if "roles_by_level_subdept_quarter" not in st.session_state:
+        st.warning("Please complete the Hiring Plan by Level first.")
+    else:
+        recruiter_rows = []
+
+        all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
+        unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
+
+        if "recruiters_assigned_subdept" not in st.session_state:
+            st.session_state.recruiters_assigned_subdept = {
+                f"{a} – {s}": 1 for (a, s) in unique_sub_depts
+            }
+
+        alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
+        for alloc in alloc_groups:
+            with st.expander(f"📁 {alloc}"):
+                for (a, s) in sorted(unique_sub_depts):
+                    if a == alloc:
+                        label = f"{s}"
+                        key = f"recruiters_{a}_{s}"
+                        st.session_state.recruiters_assigned_subdept[f"{a} – {s}"] = st.number_input(
+                            f"{label}", min_value=0,
+                            value=st.session_state.recruiters_assigned_subdept.get(f"{a} – {s}", 1),
+                            step=1, key=key
+                        )
+
+        sub_filter = st.multiselect('Filter by Sub-Department', [f"{a} – {s}" for (a,s) in unique_sub_depts], default=[f"{a} – {s}" for (a,s) in unique_sub_depts])
+        for (alloc, sub) in unique_sub_depts:
+            if f"{alloc} – {sub}" not in sub_filter:
+                continue
+            sub_label = f"{alloc} – {sub}"
+            assigned = st.session_state.recruiters_assigned_subdept[sub_label]
+            for qtr in quarters:
+                levels = st.session_state.roles_by_level_subdept_quarter.get((alloc, sub, qtr), {})
+                total_roles = sum(levels.values())
+                total_recruiters_needed = 0
+                for lvl, count in levels.items():
+                    if level_productivity.get(lvl, 1) > 0:
+                        total_recruiters_needed += count / level_productivity[lvl]
+                total_recruiters_needed = round(total_recruiters_needed, 2)
+                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
+                recruiter_rows.append((alloc, sub, qtr, total_roles, total_recruiters_needed, assigned, status))
+
+        df_recruiter_need = pd.DataFrame(recruiter_rows, columns=[
+            "Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Recruiters Assigned", "Status"
+        ])
+        st.dataframe(df_recruiter_need, use_container_width=True)
+# ----------------- Page: Forecasting -----------------
+if page == "Forecasting":
+    st.title("📈 Hiring Forecast")
+    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept, Level, and Quarter.")
+
+    level_bands = {
+        "L1–4": list(range(1, 5)),
+        "L5–7": list(range(5, 8)),
+        "L8–10": list(range(8, 11))
+    }
+
+    if "roles_by_level_subdept_quarter" not in st.session_state or "speed_settings" not in st.session_state:
+        st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
+    else:
+        forecast_rows = []
+        for (alloc, sub, qtr), levels in st.session_state.roles_by_level_subdept_quarter.items():
+            for lvl, count in levels.items():
+                if count > 0:
+                    band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4")
+                    speed = st.session_state.speed_settings.get(sub, {}).get(band, 30)
+                    velocity = round(90 / speed * count, 2)
+                    forecast_rows.append((alloc, sub, qtr, lvl, count, speed, velocity))
+
+        df_forecast = pd.DataFrame(forecast_rows, columns=[
+            "Allocation", "Sub-Dept", "Quarter", "Level", "Planned Roles", "Time to Hire (days)", "Quarterly Hiring Velocity"
+        ])
+        st.dataframe(df_forecast, use_container_width=True)
+
+
+# ----------------- Page: Headcount Adjustments -----------------
+if page == "Headcount Adjustments":
+    st.title("📊 Headcount Adjustments")
+    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df["Total Headcount"] = edited_df[
+        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+    ].sum(axis=1)
+    st.session_state.headcount_data = edited_df
+
+    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+
+    if "attrition_rates" not in st.session_state:
+        st.session_state.attrition_rates = {alloc: 0.10 for alloc in df_allocation_summary["Allocation"].unique()}
+
+    # Apply attrition rates from input
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+
+    st.subheader("📌 Summary by Allocation")
+    st.dataframe(df_allocation_summary)
+
+    st.subheader("⚙️ Adjust Attrition Rate per Allocation (as %)")
+    cols = st.columns(len(df_allocation_summary))
+    for i, alloc in enumerate(df_allocation_summary["Allocation"]):
+        with cols[i]:
+            st.session_state.attrition_rates[alloc] = st.number_input(
+                f"{alloc}", min_value=0.0, max_value=50.0,
+                value=st.session_state.attrition_rates.get(alloc, 0.10) * 100,
+                step=0.5, key=f"input_{alloc}"
+            ) / 100
+
+    # Recalculate with updated inputs
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+
+    
