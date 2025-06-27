@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 
-import plotly.express as px
+
 import numpy as np
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
@@ -278,7 +278,7 @@ if page == "Headcount Adjustments":
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
     fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Quarterly Hiring Goals by Allocation")
-    st.plotly_chart(fig, use_container_width=True)
+    
 
 
 # ----------------- Page: Adjusted Hiring Goals -----------------
@@ -304,7 +304,7 @@ if page == "Adjusted Hiring Goals":
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
     fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Final Hiring Targets by Quarter")
-    st.plotly_chart(fig, use_container_width=True)
+    
 
 
 # --------------- Page 4: Finance Overview ----------------
@@ -322,7 +322,7 @@ if page == "Finance Overview":
 
     st.subheader("📉 Change Summary (Bar Chart)")
     fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
-    st.plotly_chart(fig)
+    
 
 
 # --------------- Page 5: Success Metrics ----------------
