@@ -356,31 +356,9 @@ if page == "Finance Overview":
     delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
 
     st.subheader("📊 Headcount Changes by Sub-Dept")
-selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
-filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
-st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
-
-    # --------------- Page 5: Success Metrics ----------------
-
-# ----------------- Page: Success Metrics -----------------
-if page == "Success Metrics":
-    st.title("📊 Success Metrics & TA Benchmarks")
-
-    metrics_data = {
-        "Metric": [
-            "Avg Hires per Recruiter per Quarter",
-            "Sourcer-to-Recruiter Ratio",
-            "Coordinator Load (Reqs per Coordinator)",
-            "Avg Time-to-Fill (days)",
-            "Offer Acceptance Rate (%)"
-        ],
-        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
-        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
-    }
-
-    df_metrics = pd.DataFrame(metrics_data)
-    st.dataframe(df_metrics)
-    st.info("Benchmarks are general estimates. Customize to your organization as needed.")
+    selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
+    filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
+    st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]]). Customize to your organization as needed.")
 
 
 
