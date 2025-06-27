@@ -358,7 +358,7 @@ if page == "Finance Overview":
     st.subheader("📊 Headcount Changes by Sub-Dept")
     selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
     filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
-    st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]]). Customize to your organization as needed.")
+    st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
 
 
