@@ -1,7 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 
 
@@ -151,61 +150,35 @@ if page == "   └ Hiring Plan by Level":
             })
         df_roles_by_subdept_level = pd.DataFrame(full_table_data)
         st.dataframe(df_roles_by_subdept_level)
-# ----------------- Page: Hiring Speed Settings -----------------
-if page == "   └ Hiring Speed Settings":
-    st.title("⏱️ Hiring Speed Settings by Sub-Department")
-    st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
 
-    level_bands = {
-        "L1–4": list(range(1, 5)),
-        "L5–7": list(range(5, 8)),
-        "L8–10": list(range(8, 11))
-    }
-    sub_depts = df_headcount["Sub-Dept"].unique().tolist()
+# ----------------- Page: Hiring Speed Settings -----------------
+if page == "Hiring Speed Settings":
+    st.title("⏱ Hiring Speed Settings")
+    st.markdown("Set average time to hire per level band, by sub-department.")
+
+    sub_depts = df_headcount["Sub-Dept"].dropna().unique().tolist()
+    selected_dept = st.selectbox("Select Sub-Department", sub_depts)
 
     if "speed_settings" not in st.session_state:
-        st.session_state.speed_settings = {
-            dept: {band: 30 for band in level_bands} for dept in sub_depts
+        st.session_state.speed_settings = {}
+
+    if selected_dept not in st.session_state.speed_settings:
+        st.session_state.speed_settings[selected_dept] = {
+            "L1–4": 30,
+            "L5–7": 45,
+            "L8–10": 60
         }
 
-    uploaded_file = st.file_uploader("Optional: Upload historical time-to-hire CSV", type=["csv"])
-    if uploaded_file is not None:
-        try:
-            hist_df = pd.read_csv(uploaded_file)
-            for dept in sub_depts:
-                dept_data = hist_df[hist_df["Sub-Dept"] == dept]
-                for band_name, band_levels in level_bands.items():
-                    band_data = dept_data[dept_data["Level"].isin(band_levels)]
-                    if not band_data.empty:
-                        avg_time = round(band_data["Time to Hire"].mean())
-                        st.session_state.speed_settings[dept][band_name] = avg_time
-            st.success("Historical time-to-hire data applied.")
-        except Exception as e:
-            st.error(f"Failed to process CSV: {e}")
+    speeds = st.session_state.speed_settings[selected_dept]
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        speeds["L1–4"] = st.number_input("L1–4 days to hire", min_value=1, max_value=180, value=speeds["L1–4"])
+    with col2:
+        speeds["L5–7"] = st.number_input("L5–7 days to hire", min_value=1, max_value=180, value=speeds["L5–7"])
+    with col3:
+        speeds["L8–10"] = st.number_input("L8–10 days to hire", min_value=1, max_value=180, value=speeds["L8–10"])
 
-    for dept in sub_depts:
-        st.subheader(dept)
-        cols = st.columns(len(level_bands))
-        for i, (band, _) in enumerate(level_bands.items()):
-            with cols[i]:
-                key = f"{dept}_{band}"
-                st.session_state.speed_settings[dept][band] = st.number_input(
-                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[dept][band],
-                    step=1, key=key
-                )
-
-    st.success("Time-to-hire by sub-department and level band saved to state.")
-
-
-
-
-
-
-
-
-
-
-
+    st.success(f"Saved: {speeds}")
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter")
