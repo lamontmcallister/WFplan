@@ -7,6 +7,23 @@ import numpy as np
 # ----------------- Global Styling -----------------
 st.markdown("""
     <style>
+    <style>
+        /* Expander label color and background */
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;  /* Orange */
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+
+        /* Optional: darken the expanded content too */
+        .st-expanderContent {
+            background-color: #1c1c1c !important;  /* Darker background */
+            color: white !important;
+        }
+    </style>
+
         body, .css-18e3th9, .css-1d391kg {
             background-color: #1e1e1e !important;
             color: white !important;
@@ -377,6 +394,23 @@ if page == "Welcome to Pure Storage":
 
     st.markdown("""
         <style>
+    <style>
+        /* Expander label color and background */
+        .streamlit-expanderHeader {
+            background-color: #ff4b2b !important;  /* Orange */
+            color: white !important;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+        }
+
+        /* Optional: darken the expanded content too */
+        .st-expanderContent {
+            background-color: #1c1c1c !important;  /* Darker background */
+            color: white !important;
+        }
+    </style>
+
             body, .css-18e3th9, .css-1d391kg {
                 background-color: #1e1e1e !important;
                 color: white;
