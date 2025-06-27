@@ -3,40 +3,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-
-# ----------------- Global Styling -----------------
-st.markdown("""
-    <style>
-        body, .css-18e3th9, .css-1d391kg {
-            background-color: #1e1e1e !important;
-            color: white !important;
-        }
-        .stButton > button {
-            background-color: #ff4b2b;
-            color: white;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            font-size: 1rem;
-            border-radius: 6px;
-        }
-        .stButton > button:hover {
-            background-color: #ff6b4b;
-            transition: 0.3s;
-        }
-        .stTextInput > div > input,
-        .stNumberInput input {
-            background-color: #333 !important;
-            color: white !important;
-        }
-        .stDataFrame, .stDataTable, .stMarkdown {
-            color: white !important;
-        }
-        .st-expanderContent {
-            background-color: #222 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # ----------------- Load or initialize data -----------------
@@ -216,11 +182,6 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept_quarter" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-    all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
-    unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
-    subdept_labels = [f"{a} – {s}" for (a, s) in unique_sub_depts]
-    selected_labels = st.multiselect("Filter by Sub-Department", options=subdept_labels, default=subdept_labels)
-
         recruiter_rows = []
 
         all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
@@ -245,8 +206,6 @@ if page == "Recruiter Capacity Model":
                         )
 
         for (alloc, sub) in unique_sub_depts:
-            if f"{alloc} – {sub}" not in selected_labels:
-                continue
             sub_label = f"{alloc} – {sub}"
             assigned = st.session_state.recruiters_assigned_subdept[sub_label]
             for qtr in quarters:
@@ -291,8 +250,6 @@ if page == "Forecasting":
             "Allocation", "Sub-Dept", "Quarter", "Level", "Planned Roles", "Time to Hire (days)", "Quarterly Hiring Velocity"
         ])
         st.dataframe(df_forecast, use_container_width=True)
-
-
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
@@ -305,13 +262,8 @@ if page == "Headcount Adjustments":
     st.session_state.headcount_data = edited_df
 
     df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
-
-    if "attrition_rates" not in st.session_state:
-        st.session_state.attrition_rates = {alloc: 0.10 for alloc in df_allocation_summary["Allocation"].unique()}
-
-    # Apply attrition rates from input
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
+        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
         axis=1
     )
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
@@ -319,21 +271,77 @@ if page == "Headcount Adjustments":
     st.subheader("📌 Summary by Allocation")
     st.dataframe(df_allocation_summary)
 
-    st.subheader("⚙️ Adjust Attrition Rate per Allocation (as %)")
-    cols = st.columns(len(df_allocation_summary))
-    for i, alloc in enumerate(df_allocation_summary["Allocation"]):
-        with cols[i]:
-            st.session_state.attrition_rates[alloc] = st.number_input(
-                f"{alloc}", min_value=0.0, max_value=50.0,
-                value=st.session_state.attrition_rates.get(alloc, 0.10) * 100,
-                step=0.5, key=f"input_{alloc}"
-            ) / 100
+    st.subheader("📈 Hiring Goals by Quarter (Line Chart)")
+    chart_data = df_allocation_summary.copy()
+    for q in ["Q1", "Q2", "Q3", "Q4"]:
+        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
+    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
+    # ----------------- Page: Adjusted Hiring Goals -----------------
+if page == "Adjusted Hiring Goals":
+    st.title("📈 Adjusted Hiring Goals")
+    st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
+    selected_allocation = st.sidebar.selectbox("Choose Allocation", df_allocation_summary["Allocation"].unique())
+    new_rate = st.sidebar.slider("Attrition Rate (%)", 0, 50, int(default_attrition_rates[selected_allocation] * 100), 1)
+    default_attrition_rates[selected_allocation] = new_rate / 100
 
-    # Recalculate with updated inputs
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
+        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
         axis=1
     )
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-    
+    st.subheader("📌 Final Hiring Targets After Attrition")
+    st.dataframe(df_allocation_summary)
+
+    st.subheader("📉 Final Hiring Targets by Quarter (Line Chart)")
+    chart_data = df_allocation_summary.copy()
+    for q in ["Q1", "Q2", "Q3", "Q4"]:
+        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
+    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
+    # --------------- Page 4: Finance Overview ----------------
+if page == "Finance Overview":
+    st.title("💰 Finance Overview")
+    original_df = st.session_state.original_headcount
+    current_df = st.session_state.headcount_data
+    delta_df = current_df.copy()
+    delta_df["Original Total"] = original_df["Total Headcount"]
+    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
+    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
+
+    st.subheader("📊 Headcount Changes by Sub-Dept")
+    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
+
+    st.subheader("📉 Change Summary (Bar Chart)")
+    # --------------- Page 5: Success Metrics ----------------
+
+# ----------------- Page: Success Metrics -----------------
+if page == "Success Metrics":
+    st.title("📊 Success Metrics & TA Benchmarks")
+
+    metrics_data = {
+        "Metric": [
+            "Avg Hires per Recruiter per Quarter",
+            "Sourcer-to-Recruiter Ratio",
+            "Coordinator Load (Reqs per Coordinator)",
+            "Avg Time-to-Fill (days)",
+            "Offer Acceptance Rate (%)"
+        ],
+        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
+        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
+    }
+
+    df_metrics = pd.DataFrame(metrics_data)
+    st.dataframe(df_metrics)
+    st.info("Benchmarks are general estimates. Customize to your organization as needed.")
+
+# ----------------- Page: Welcome to Pure Storage -----------------
+if page == "Welcome to Pure Storage":
+    st.title("📊 Pure Storage Workforce Planning Dashboard")
+    st.markdown("""
+    Welcome to the Pure Storage capacity model.  
+    This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.
+
+    Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.
+
+    _Let’s build smarter, faster, and more strategically._
+    """)
