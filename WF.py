@@ -62,7 +62,6 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
-    "Adjusted Hiring Goals",
     "Hiring Plan by Level",
     "Recruiter Capacity Model",
     "Finance Overview",
