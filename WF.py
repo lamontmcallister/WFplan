@@ -284,6 +284,7 @@ if page == "Forecasting":
             "Allocation", "Sub-Dept", "Quarter", "Level", "Planned Roles", "Time to Hire (days)", "Quarterly Hiring Velocity"
         ])
         st.dataframe(df_forecast, use_container_width=True)
+
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
@@ -296,8 +297,20 @@ if page == "Headcount Adjustments":
     st.session_state.headcount_data = edited_df
 
     df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+
+    if "attrition_rates" not in st.session_state:
+        st.session_state.attrition_rates = {alloc: 0.10 for alloc in df_allocation_summary["Allocation"].unique()}
+
+    st.markdown("### ⚙️ Adjust Attrition Rate by Allocation")
+    for alloc in df_allocation_summary["Allocation"]:
+        st.session_state.attrition_rates[alloc] = st.slider(
+            f"{alloc} Attrition Rate (%)", min_value=0, max_value=50,
+            value=int(st.session_state.attrition_rates.get(alloc, 0.10) * 100),
+            step=1, key=f"slider_{alloc}"
+        ) / 100
+
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+        lambda row: row["Total Headcount"] * st.session_state.attrition_rates.get(row["Allocation"], 0.10),
         axis=1
     )
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
@@ -310,7 +323,7 @@ if page == "Headcount Adjustments":
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    # ----------------- Page: Adjusted Hiring Goals -----------------
+# ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
     st.title("📈 Adjusted Hiring Goals")
     st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
