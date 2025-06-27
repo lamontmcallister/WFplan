@@ -210,10 +210,9 @@ if page == "   └ Hiring Speed Settings":
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter")
-st.markdown("Assign recruiter headcount by sub-department. Filter by Allocation above the table.")
+    st.markdown("Assign recruiter headcount by sub-department. Filter by Allocation above the table.")
 
-selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
-
+    selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
 
