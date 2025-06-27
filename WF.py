@@ -338,16 +338,4 @@ if page == "Welcome to Pure Storage":
     st.title("Pure Storage Workforce Planning Dashboard")
     st.markdown("Align Talent, Finance, and Recruiting around data-backed plans.")
 
-    st.markdown("### 🔍 Explore Modules")
-    st.markdown("- 📊 **Headcount Adjustments**: Edit seat counts, future starts, and open roles")
-    st.markdown("- 🧮 **Recruiter Capacity Model**: Filter by department and check recruiter load")
-    st.markdown("- ⏱️ **Hiring Speed Settings**: Set expected time-to-hire by level band")
-    st.markdown("- 💰 **Finance Overview**: Track headcount changes needing budget approval")
-    st.markdown("- 📌 **Hiring Plan by Level**: Define quarterly hires by level and team")
-    st.markdown("_Let's build smarter, faster, and more strategically._")
-
-
-
-
-
     """)
