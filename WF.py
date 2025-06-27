@@ -168,10 +168,11 @@ if page == "   └ Hiring Speed Settings":
 
 
 
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
-    st.title("🧮 Recruiter Capacity by Quarter (Enhanced)")
-    st.markdown("Estimate recruiter need based on quarter, role level, and productivity by department.")
+    st.title("🧮 Recruiter Capacity by Quarter (Simplified)")
+    st.markdown("Estimates recruiter need per quarter based on hiring plan. You provide the total recruiter headcount, and we calculate utilization.")
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -179,41 +180,34 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept_quarter" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        show_all = st.checkbox("Show full recruiter needs by department and quarter", value=False)
+        total_recruiters = st.number_input("Total Recruiters Available", min_value=1, value=10, step=1)
         recruiter_rows = []
 
-        all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
-        unique_sub_depts = list(set([(a, s) for (a, s, q) in all_keys]))
+        quarter_demand = {q: 0 for q in quarters}
 
-        if not show_all:
-            sub_options = [f"{a} – {s}" for (a, s) in unique_sub_depts]
-            selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
-            selected_alloc, selected_sub = selected.split(" – ")
-            sub_list = [(selected_alloc, selected_sub)]
-        else:
-            sub_list = unique_sub_depts
-
-        for (alloc, sub) in sub_list:
-            for qtr in quarters:
-                levels = st.session_state.roles_by_level_subdept_quarter.get((alloc, sub, qtr), {})
-                total_roles = sum(levels.values())
-                if not show_all:
-                    assigned = st.number_input(f"{sub} {qtr} – Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}_{qtr}")
-                else:
-                    assigned = 1
-                total_recruiters_needed = 0
-                for lvl, count in levels.items():
-                    if level_productivity.get(lvl, 1) > 0:
-                        total_recruiters_needed += count / level_productivity[lvl]
-                total_recruiters_needed = round(total_recruiters_needed, 2)
-                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
-                recruiter_rows.append((alloc, sub, qtr, total_roles, total_recruiters_needed, assigned, status))
+        for (alloc, sub, qtr), levels in st.session_state.roles_by_level_subdept_quarter.items():
+            total_roles = sum(levels.values())
+            needed = 0
+            for lvl, count in levels.items():
+                if level_productivity.get(lvl, 1) > 0:
+                    needed += count / level_productivity[lvl]
+            needed = round(needed, 2)
+            quarter_demand[qtr] += needed
+            status = "✅" if total_recruiters >= needed else f"❌ +{round(needed - total_recruiters, 2)}"
+            recruiter_rows.append((alloc, sub, qtr, total_roles, needed, total_recruiters, status))
 
         df_recruiter_need = pd.DataFrame(recruiter_rows, columns=[
-            "Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Assigned", "Status"
+            "Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Recruiters Available", "Status"
         ])
         st.dataframe(df_recruiter_need, use_container_width=True)
 
+        st.markdown("### 📊 Quarterly Total Demand vs Supply")
+        quarter_summary = pd.DataFrame([
+            {"Quarter": q, "Recruiters Needed": round(quarter_demand[q], 2), "Recruiters Available": total_recruiters,
+             "Status": "✅" if total_recruiters >= quarter_demand[q] else f"❌ +{round(quarter_demand[q] - total_recruiters, 2)}"}
+            for q in quarters
+        ])
+        st.dataframe(quarter_summary)
 # ----------------- Page: Forecasting -----------------
 if page == "Forecasting":
     st.title("📈 Hiring Forecast")
