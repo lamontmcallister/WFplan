@@ -291,7 +291,7 @@ if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
     st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
 
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic", key="headcount_editor")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
@@ -462,7 +462,7 @@ if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
     st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
 
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic", key="headcount_editor")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
