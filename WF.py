@@ -1,8 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-
-import plotly.express as px
 import numpy as np
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
@@ -60,61 +58,66 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
+
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
-    "Adjusted Hiring Goals",
-    "Hiring Plan by Level",
     "Recruiter Capacity Model",
+    "   └ Hiring Plan by Level",
+    "   └ Hiring Speed Settings",
     "Finance Overview",
-    "Hiring Speed Settings",
     "Success Metrics",
     "Forecasting"
 ])
 
 
 
+
+
 # ----------------- Page: Hiring Plan by Level -----------------
-if page == "Hiring Plan by Level":
-    st.title("📌 Hiring Plan by Level & Sub-Department")
-    st.markdown("Select an allocation and sub-department to define role counts per level.")
+if page == "   └ Hiring Plan by Level":
+    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter")
+    st.markdown("Define planned hires per level by department and quarter.")
 
     levels = list(range(1, 9))
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
     subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
 
-    if "roles_by_level_subdept" not in st.session_state:
-        st.session_state.roles_by_level_subdept = {
-            (row["Allocation"], row["Sub-Dept"]): {lvl: 0 for lvl in levels}
-            for _, row in subdept_df.iterrows()
+    if "roles_by_level_subdept_quarter" not in st.session_state:
+        st.session_state.roles_by_level_subdept_quarter = {
+            (row["Allocation"], row["Sub-Dept"], q): {lvl: 0 for lvl in levels}
+            for _, row in subdept_df.iterrows() for q in quarters
         }
 
     selected_alloc = st.selectbox("Select Allocation", subdept_df["Allocation"].unique())
     sub_options = subdept_df[subdept_df["Allocation"] == selected_alloc]["Sub-Dept"].unique()
     selected_sub = st.selectbox("Select Sub-Department", sub_options)
+    selected_qtr = st.selectbox("Select Quarter", quarters)
 
-    st.subheader(f"{selected_alloc} – {selected_sub}")
+    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}")
     cols = st.columns(len(levels))
     for i, lvl in enumerate(levels):
         with cols[i]:
-            key = f"{selected_alloc}_{selected_sub}_L{lvl}"
-            st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)][lvl] = st.number_input(
-                f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)][lvl], key=key
+            key = f"{selected_alloc}_{selected_sub}_{selected_qtr}_L{lvl}"
+            st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
+                f"L{lvl}", min_value=0,
+                value=st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl],
+                key=key
             )
 
     if st.checkbox("Show full hiring plan table"):
         full_table_data = []
-        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
+        for (alloc, sub, qtr), level_counts in st.session_state.roles_by_level_subdept_quarter.items():
             full_table_data.append({
                 "Allocation": alloc,
                 "Sub-Dept": sub,
-                **levels
+                "Quarter": qtr,
+                **level_counts
             })
         df_roles_by_subdept_level = pd.DataFrame(full_table_data)
         st.dataframe(df_roles_by_subdept_level)
-
-
 # ----------------- Page: Hiring Speed Settings -----------------
-if page == "Hiring Speed Settings":
+if page == "   └ Hiring Speed Settings":
     st.title("⏱️ Hiring Speed Settings by Sub-Department")
     st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
 
@@ -164,64 +167,66 @@ if page == "Hiring Speed Settings":
 
 
 
+
+
+
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
-    st.title("🧮 Recruiter Capacity by Quarter (Enhanced)")
-    st.markdown("Estimate recruiter need based on quarter, role level, and productivity by department.")
+    st.title("🧮 Recruiter Capacity by Quarter")
+    st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
 
-    if "roles_by_level_subdept" not in st.session_state:
+    if "roles_by_level_subdept_quarter" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        show_all = st.checkbox("Show full recruiter needs by department and quarter", value=False)
         recruiter_rows = []
 
-        all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
-        sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
+        all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
+        unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
 
-        if not show_all:
-            selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
-            selected_alloc, selected_sub = selected.split(" – ")
-            sub_list = [(selected_alloc, selected_sub)]
-        else:
-            sub_list = all_sub_depts
+        if "recruiters_assigned_subdept" not in st.session_state:
+            st.session_state.recruiters_assigned_subdept = {
+                f"{a} – {s}": 1 for (a, s) in unique_sub_depts
+            }
 
-        for (alloc, sub) in sub_list:
-            levels = st.session_state.roles_by_level_subdept[(alloc, sub)]
-            total_roles = sum(levels.values())
+        alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
+        for alloc in alloc_groups:
+            with st.expander(f"📁 {alloc}"):
+                for (a, s) in sorted(unique_sub_depts):
+                    if a == alloc:
+                        label = f"{s}"
+                        key = f"recruiters_{a}_{s}"
+                        st.session_state.recruiters_assigned_subdept[f"{a} – {s}"] = st.number_input(
+                            f"{label}", min_value=0,
+                            value=st.session_state.recruiters_assigned_subdept.get(f"{a} – {s}", 1),
+                            step=1, key=key
+                        )
 
-            q_weights = [0.25, 0.25, 0.25, 0.25]
-            if not show_all:
-                col1, col2 = st.columns(2)
-                with col1:
-                    assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
-                with col2:
-                    for i, q in enumerate(quarters):
-                        q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
-            else:
-                assigned = 1
-
-            for q, q_pct in zip(quarters, q_weights):
-                q_roles = total_roles * q_pct
+        for (alloc, sub) in unique_sub_depts:
+            sub_label = f"{alloc} – {sub}"
+            assigned = st.session_state.recruiters_assigned_subdept[sub_label]
+            for qtr in quarters:
+                levels = st.session_state.roles_by_level_subdept_quarter.get((alloc, sub, qtr), {})
+                total_roles = sum(levels.values())
                 total_recruiters_needed = 0
                 for lvl, count in levels.items():
-                    q_lvl_roles = count * q_pct
                     if level_productivity.get(lvl, 1) > 0:
-                        total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
+                        total_recruiters_needed += count / level_productivity[lvl]
                 total_recruiters_needed = round(total_recruiters_needed, 2)
                 status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
-                recruiter_rows.append((alloc, sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
+                recruiter_rows.append((alloc, sub, qtr, total_roles, total_recruiters_needed, assigned, status))
 
-        df_recruiter_need = pd.DataFrame(recruiter_rows, columns=["Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Assigned", "Status"])
+        df_recruiter_need = pd.DataFrame(recruiter_rows, columns=[
+            "Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Recruiters Assigned", "Status"
+        ])
         st.dataframe(df_recruiter_need, use_container_width=True)
-
-
 # ----------------- Page: Forecasting -----------------
 if page == "Forecasting":
     st.title("📈 Hiring Forecast")
-    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept and Level.")
+    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept, Level, and Quarter.")
 
     level_bands = {
         "L1–4": list(range(1, 5)),
@@ -229,27 +234,22 @@ if page == "Forecasting":
         "L8–10": list(range(8, 11))
     }
 
-    if "roles_by_level_subdept" not in st.session_state or "speed_settings" not in st.session_state:
+    if "roles_by_level_subdept_quarter" not in st.session_state or "speed_settings" not in st.session_state:
         st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
     else:
         forecast_rows = []
-        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
+        for (alloc, sub, qtr), levels in st.session_state.roles_by_level_subdept_quarter.items():
             for lvl, count in levels.items():
                 if count > 0:
-                    # Determine band
                     band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4")
                     speed = st.session_state.speed_settings.get(sub, {}).get(band, 30)
-                    velocity = round(30 / speed * count, 2)
-                    forecast_rows.append((alloc, sub, lvl, count, speed, velocity))
+                    velocity = round(90 / speed * count, 2)
+                    forecast_rows.append((alloc, sub, qtr, lvl, count, speed, velocity))
 
         df_forecast = pd.DataFrame(forecast_rows, columns=[
-            "Allocation", "Sub-Dept", "Level", "Planned Roles", "Time to Hire (days)", "Monthly Hiring Velocity"
+            "Allocation", "Sub-Dept", "Quarter", "Level", "Planned Roles", "Time to Hire (days)", "Quarterly Hiring Velocity"
         ])
         st.dataframe(df_forecast, use_container_width=True)
-        st.info("Velocity is an estimate of how many roles can be filled monthly based on current hiring speed.")
-
-
-
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
     st.title("📊 Headcount Adjustments")
@@ -276,11 +276,7 @@ if page == "Headcount Adjustments":
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Quarterly Hiring Goals by Allocation")
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# ----------------- Page: Adjusted Hiring Goals -----------------
+    # ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
     st.title("📈 Adjusted Hiring Goals")
     st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
@@ -302,11 +298,7 @@ if page == "Adjusted Hiring Goals":
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Final Hiring Targets by Quarter")
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# --------------- Page 4: Finance Overview ----------------
+    # --------------- Page 4: Finance Overview ----------------
 if page == "Finance Overview":
     st.title("💰 Finance Overview")
     original_df = st.session_state.original_headcount
@@ -320,11 +312,7 @@ if page == "Finance Overview":
     st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
     st.subheader("📉 Change Summary (Bar Chart)")
-    fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
-    st.plotly_chart(fig)
-
-
-# --------------- Page 5: Success Metrics ----------------
+    # --------------- Page 5: Success Metrics ----------------
 
 # ----------------- Page: Success Metrics -----------------
 if page == "Success Metrics":
