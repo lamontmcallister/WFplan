@@ -60,6 +60,14 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
+    "Welcome to Pure Storage",
+    "Headcount Adjustments",
+    "Adjusted Hiring Goals",
+    "Hiring Plan by Level",
+    "Recruiter Capacity Model",
+    "Finance Overview",
+    "Hiring Speed Settings",
+    "Success Metrics",
     "Recruiter Capacity Model",
     "Headcount Adjustments",
     "Adjusted Hiring Goals",
@@ -160,10 +168,11 @@ if page == "Hiring Speed Settings":
 
 
 
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter (Enhanced)")
-    st.markdown("Calculates recruiter need per sub-department and quarter using level-based hiring mix.")
+    st.markdown("View recruiter need per sub-department and quarter using role levels and productivity assumptions.")
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -171,32 +180,42 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
-        sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
-        selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
-        selected_alloc, selected_sub = selected.split(" – ")
-
-        total_roles = sum(st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)].values())
-
-        col1, col2 = st.columns(2)
-        with col1:
-            assigned = st.number_input(f"{selected_sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{selected_sub}")
-        with col2:
-            q_weights = [0.25, 0.25, 0.25, 0.25]
-            for i, q in enumerate(quarters):
-                q_weights[i] = st.number_input(f"{selected_sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{selected_sub}_{q}_dist")
+        show_all = st.checkbox("Show full recruiter need table for all sub-departments", value=False)
 
         recruiter_rows = []
-        for q, q_pct in zip(quarters, q_weights):
-            q_roles = total_roles * q_pct
-            total_recruiters_needed = 0
-            for lvl, count in st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)].items():
-                q_lvl_roles = count * q_pct
-                if level_productivity.get(lvl, 1) > 0:
-                    total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
-            total_recruiters_needed = round(total_recruiters_needed, 2)
-            status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
-            recruiter_rows.append((selected_alloc, selected_sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
+        selected_alloc = selected_sub = None
+
+        if not show_all:
+            all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
+            sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
+            selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
+            selected_alloc, selected_sub = selected.split(" – ")
+            sub_list = [(selected_alloc, selected_sub)]
+        else:
+            sub_list = st.session_state.roles_by_level_subdept.keys()
+
+        for (alloc, sub) in sub_list:
+            levels = st.session_state.roles_by_level_subdept[(alloc, sub)]
+            total_roles = sum(levels.values())
+
+            col1, col2 = st.columns(2)
+            with col1:
+                assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
+            with col2:
+                q_weights = [0.25, 0.25, 0.25, 0.25]
+                for i, q in enumerate(quarters):
+                    q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
+
+            for q, q_pct in zip(quarters, q_weights):
+                q_roles = total_roles * q_pct
+                total_recruiters_needed = 0
+                for lvl, count in levels.items():
+                    q_lvl_roles = count * q_pct
+                    if level_productivity.get(lvl, 1) > 0:
+                        total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
+                total_recruiters_needed = round(total_recruiters_needed, 2)
+                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
+                recruiter_rows.append((alloc, sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
 
         df_recruiter_need = pd.DataFrame(recruiter_rows, columns=["Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Assigned", "Status"])
         st.dataframe(df_recruiter_need, use_container_width=True)
@@ -329,3 +348,15 @@ if page == "Success Metrics":
     df_metrics = pd.DataFrame(metrics_data)
     st.dataframe(df_metrics)
     st.info("Benchmarks are general estimates. Customize to your organization as needed.")
+
+# ----------------- Page: Welcome to Pure Storage -----------------
+if page == "Welcome to Pure Storage":
+    st.title("📊 Pure Storage Workforce Planning Dashboard")
+    st.markdown("""
+    Welcome to the Pure Storage capacity model.  
+    This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.
+
+    Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.
+
+    _Let’s build smarter, faster, and more strategically._
+    """)
