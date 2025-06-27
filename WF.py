@@ -170,10 +170,11 @@ if page == "   └ Hiring Speed Settings":
 
 
 
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter")
-    st.markdown("Estimate recruiter need based on hiring plan. Assign a recruiter count per Sub-Department, which will apply across all quarters.")
+    st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -184,20 +185,25 @@ if page == "Recruiter Capacity Model":
         recruiter_rows = []
 
         all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
-        unique_sub_depts = list(set([(a, s) for (a, s, q) in all_keys]))
+        unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
 
-        # Recruiter assignment per sub-department
         if "recruiters_assigned_subdept" not in st.session_state:
             st.session_state.recruiters_assigned_subdept = {
                 f"{a} – {s}": 1 for (a, s) in unique_sub_depts
             }
 
-        for (alloc, sub) in unique_sub_depts:
-            sub_label = f"{alloc} – {sub}"
-            st.session_state.recruiters_assigned_subdept[sub_label] = st.number_input(
-                f"Recruiters Assigned to {sub_label}", min_value=0, value=st.session_state.recruiters_assigned_subdept[sub_label],
-                step=1, key=f"recruiters_{sub_label}"
-            )
+        alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
+        for alloc in alloc_groups:
+            with st.expander(f"📁 {alloc}"):
+                for (a, s) in sorted(unique_sub_depts):
+                    if a == alloc:
+                        label = f"{s}"
+                        key = f"recruiters_{a}_{s}"
+                        st.session_state.recruiters_assigned_subdept[f"{a} – {s}"] = st.number_input(
+                            f"{label}", min_value=0,
+                            value=st.session_state.recruiters_assigned_subdept.get(f"{a} – {s}", 1),
+                            step=1, key=key
+                        )
 
         for (alloc, sub) in unique_sub_depts:
             sub_label = f"{alloc} – {sub}"
