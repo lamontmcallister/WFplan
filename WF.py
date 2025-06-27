@@ -1,13 +1,4 @@
 
-
-    st.markdown("""
-    <div style='padding: 2rem 0 1rem 0;'>
-        <p style='font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
-        <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -103,21 +94,6 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 st.sidebar.title("Navigation")
 
 page = st.sidebar.radio("Go to", [
-
-if page == "Welcome to Pure Storage":
-    st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
-    st.markdown("## Welcome to the Workforce Planning Portal")
-    st.markdown("This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.")
-    st.markdown("Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.")
-    st.markdown("*Let’s build smarter, faster, and more strategically.*")
-
-
-    st.markdown("""
-        <div style='padding: 2rem 0 1rem 0;'>
-            <p style='font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
-            <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
-        </div>
-    """, unsafe_allow_html=True)
     "Welcome to Pure Storage",
     "Headcount Adjustments",
     "Recruiter Capacity Model",
@@ -127,22 +103,6 @@ if page == "Welcome to Pure Storage":
     "Success Metrics",
     "Forecasting"
 ])
-
-
-
-    st.markdown("""
-        <div style='padding: 2rem 0 1rem 0;'>
-            <p style='font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
-            <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style='padding: 2rem 0 1rem 0;'>
-        <p style='font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
-        <p style='font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically. Your data-driven roadmap to hiring confidence starts here.</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 
 
@@ -192,12 +152,9 @@ if page == "   └ Hiring Plan by Level":
         st.dataframe(df_roles_by_subdept_level)
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
-    st.title("Hiring Speed Settings")
-    st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
+    st.title("⏱️ Hiring Speed Settings by Sub-Department")
+    st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
 
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Set the expected time-to-hire in days for different role levels within each sub-department. These settings affect the forecast model.")
-    
     level_bands = {
         "L1–4": list(range(1, 5)),
         "L5–7": list(range(5, 8)),
@@ -252,12 +209,9 @@ if page == "   └ Hiring Speed Settings":
 
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
-    st.title("Recruiter Capacity Model")
-    st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
+    st.title("🧮 Recruiter Capacity by Quarter")
+    st.markdown("Assign recruiter headcount by sub-department. Filter by Allocation above the table.")
 
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Use this view to assign recruiter headcount by sub-department and compare against calculated needs by quarter. Filter by allocation to focus in.")
-    
     selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -337,12 +291,9 @@ if page == "Forecasting":
         st.dataframe(df_forecast, use_container_width=True)
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
-    st.title("Headcount Adjustments")
-    st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
+    st.title("📊 Headcount Adjustments")
+    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
 
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
-    
     edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
@@ -412,23 +363,44 @@ if page == "Finance Overview":
 
 
 # ----------------- Page: Welcome to Pure Storage -----------------
-if page == "Success Metrics":
-    st.title("📊 Success Metrics & TA Benchmarks")
+if page == "Welcome to Pure Storage":
+    st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "This view compares current totals against original planned values. Use it to identify departments that may need finance approval for added headcount.")
+    st.markdown("""
+        <style>
+            body, .css-18e3th9, .css-1d391kg {
+                background-color: #1e1e1e !important;
+                color: white;
+            }
+            .stButton > button {
+                background-color: #ff4b2b;
+                color: white;
+                border: none;
+                padding: 0.5rem 1.25rem;
+                font-size: 1rem;
+                border-radius: 6px;
+            }
+            .stButton > button:hover {
+                background-color: #ff6b4b;
+                transition: 0.3s;
+            }
+            .stTextInput > div > input {
+                background-color: #333;
+                color: white;
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
-    metrics_data = {
-        "Metric": [
-            "Avg Hires per Recruiter per Quarter",
-            "Sourcer-to-Recruiter Ratio",
-            "Coordinator Load (Reqs per Coordinator)",
-            "Avg Time-to-Fill (days)",
-            "Offer Acceptance Rate (%)"
-        ],
-        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
-        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
-    }
+    st.markdown("""
+        <div style='background: linear-gradient(90deg, #ff4b2b, #ff416c); padding: 2rem; border-radius: 0 0 20px 20px;'>
+            <h1 style='color: white; font-size: 2.5rem;'>Welcome to the Workforce Planning Portal</h1>
+            <p style='color: white; font-size: 1.1rem;'>This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    df_metrics = pd.DataFrame(metrics_data)
-    st.dataframe(df_metrics)
+    st.markdown("""
+        <div style='padding: 2rem 0 1rem 0;'>
+            <p style='color: white; font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
+            <p style='color: white; font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically.</p>
+        </div>
+    """, unsafe_allow_html=True)
