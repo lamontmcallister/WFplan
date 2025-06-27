@@ -148,8 +148,8 @@ if page == "   └ Hiring Speed Settings":
         except Exception as e:
             st.error(f"Failed to process CSV: {e}")
 
-    for dept in sub_depts:
-        st.subheader(dept)
+    for dept in sorted(sub_depts):
+    with st.expander(dept):
         cols = st.columns(len(level_bands))
         for i, (band, _) in enumerate(level_bands.items()):
             with cols[i]:
@@ -173,6 +173,7 @@ if page == "   └ Hiring Speed Settings":
 
 # ----------------- Page: Recruiter Capacity Model -----------------
 
+
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter")
     st.markdown("Assign recruiter headcount by sub-department. Use the dropdown to filter by Allocation.")
@@ -180,40 +181,23 @@ if page == "Recruiter Capacity Model":
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
 
-    selected_allocation = st.selectbox("Filter by Allocation", sorted(set([a for (a, s, q) in st.session_state.roles_by_level_subdept_quarter.keys()])))
-    st.title("🧮 Recruiter Capacity by Quarter")
-    st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
-
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
-
     if "roles_by_level_subdept_quarter" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        recruiter_rows = []
-
         all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
         unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
+
+        selected_allocation = st.selectbox("Filter by Allocation", sorted(set([a for (a, s) in unique_sub_depts])))
 
         if "recruiters_assigned_subdept" not in st.session_state:
             st.session_state.recruiters_assigned_subdept = {
                 f"{a} – {s}": 1 for (a, s) in unique_sub_depts
             }
 
-        alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
-        for alloc in alloc_groups:
-            with st.expander(f"📁 {alloc}"):
-                for (a, s) in sorted(unique_sub_depts):
-                    if a == alloc:
-                        label = f"{s}"
-                        key = f"recruiters_{a}_{s}"
-                        st.session_state.recruiters_assigned_subdept[f"{a} – {s}"] = st.number_input(
-                            f"{label}", min_value=0,
-                            value=st.session_state.recruiters_assigned_subdept.get(f"{a} – {s}", 1),
-                            step=1, key=key
-                        )
-
+        recruiter_rows = []
         for (alloc, sub) in unique_sub_depts:
+            if alloc != selected_allocation:
+                continue
             sub_label = f"{alloc} – {sub}"
             assigned = st.session_state.recruiters_assigned_subdept[sub_label]
             for qtr in quarters:
@@ -344,9 +328,24 @@ if page == "Success Metrics":
     st.info("Benchmarks are general estimates. Customize to your organization as needed.")
 
 # ----------------- Page: Welcome to Pure Storage -----------------
+
 if page == "Welcome to Pure Storage":
-    st.title("📊 Pure Storage Workforce Planning Dashboard")
     st.markdown("""
+    <div style="background: linear-gradient(90deg, #f25022, #ff6f3c); padding:2rem; border-radius:10px; text-align:center;">
+        <h1 style="color:white; font-size:2.5rem;">Pure Storage Workforce Planning Dashboard</h1>
+        <p style="color:white; font-size:1.2rem;">Align Talent, Finance, and Recruiting around data-backed plans.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### 🔍 Explore Modules")
+    st.markdown("""
+    - 📊 **Headcount Adjustments**: Edit seat counts, future starts, and open roles
+    - 🧮 **Recruiter Capacity Model**: Filter by department and check recruiter load
+    - ⏱️ **Hiring Speed Settings**: Set expected time-to-hire by level band
+    - 💰 **Finance Overview**: Track headcount changes needing budget approval
+    - 📌 **Hiring Plan by Level**: Define quarterly hires by level and team
+    """)
+
     Welcome to the Pure Storage capacity model.  
     This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.
 
