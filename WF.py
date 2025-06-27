@@ -1,7 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
@@ -334,23 +333,19 @@ if page == "Success Metrics":
 
 
 
+
 if page == "Welcome to Pure Storage":
-    st.markdown(
-        "<div style='background: linear-gradient(90deg, #f25022, #ff6f3c); padding:2rem; border-radius:10px; text-align:center;'>"
-        "<h1 style='color:white; font-size:2.5rem;'>Pure Storage Workforce Planning Dashboard</h1>"
-        "<p style='color:white; font-size:1.2rem;'>Align Talent, Finance, and Recruiting around data-backed plans.</p>"
-        "</div>",
-        unsafe_allow_html=True
-    )
+    st.title("Pure Storage Workforce Planning Dashboard")
+    st.markdown("Align Talent, Finance, and Recruiting around data-backed plans.")
 
     st.markdown("### 🔍 Explore Modules")
-    st.markdown("""- 📊 **Headcount Adjustments**: Edit seat counts, future starts, and open roles  
-- 🧮 **Recruiter Capacity Model**: Filter by department and check recruiter load  
-- ⏱️ **Hiring Speed Settings**: Set expected time-to-hire by level band  
-- 💰 **Finance Overview**: Track headcount changes needing budget approval  
-- 📌 **Hiring Plan by Level**: Define quarterly hires by level and team  
-""")
+    st.markdown("- 📊 **Headcount Adjustments**: Edit seat counts, future starts, and open roles")
+    st.markdown("- 🧮 **Recruiter Capacity Model**: Filter by department and check recruiter load")
+    st.markdown("- ⏱️ **Hiring Speed Settings**: Set expected time-to-hire by level band")
+    st.markdown("- 💰 **Finance Overview**: Track headcount changes needing budget approval")
+    st.markdown("- 📌 **Hiring Plan by Level**: Define quarterly hires by level and team")
     st.markdown("_Let's build smarter, faster, and more strategically._")
+
 
 
 
