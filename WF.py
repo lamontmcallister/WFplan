@@ -68,14 +68,7 @@ page = st.sidebar.radio("Go to", [
     "Finance Overview",
     "Hiring Speed Settings",
     "Success Metrics",
-    "Recruiter Capacity Model",
-    "Headcount Adjustments",
-    "Adjusted Hiring Goals",
-    "Finance Overview",
-    "Success Metrics",
-    "Forecasting",
-    "Hiring Speed Settings",
-    "Hiring Plan by Level",
+    "Forecasting"
 ])
 
 
@@ -169,10 +162,11 @@ if page == "Hiring Speed Settings":
 
 
 
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter (Enhanced)")
-    st.markdown("View recruiter need per sub-department and quarter using role levels and productivity assumptions.")
+    st.markdown("Estimate recruiter need based on quarter, role level, and productivity by department.")
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -180,31 +174,33 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        show_all = st.checkbox("Show full recruiter need table for all sub-departments", value=False)
-
+        show_all = st.checkbox("Show full recruiter needs by department and quarter", value=False)
         recruiter_rows = []
-        selected_alloc = selected_sub = None
+
+        all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
+        sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
 
         if not show_all:
-            all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
-            sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
             selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
             selected_alloc, selected_sub = selected.split(" – ")
             sub_list = [(selected_alloc, selected_sub)]
         else:
-            sub_list = st.session_state.roles_by_level_subdept.keys()
+            sub_list = all_sub_depts
 
         for (alloc, sub) in sub_list:
             levels = st.session_state.roles_by_level_subdept[(alloc, sub)]
             total_roles = sum(levels.values())
 
-            col1, col2 = st.columns(2)
-            with col1:
-                assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
-            with col2:
-                q_weights = [0.25, 0.25, 0.25, 0.25]
-                for i, q in enumerate(quarters):
-                    q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
+            q_weights = [0.25, 0.25, 0.25, 0.25]
+            if not show_all:
+                col1, col2 = st.columns(2)
+                with col1:
+                    assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
+                with col2:
+                    for i, q in enumerate(quarters):
+                        q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
+            else:
+                assigned = 1
 
             for q, q_pct in zip(quarters, q_weights):
                 q_roles = total_roles * q_pct
