@@ -277,11 +277,7 @@ if page == "Headcount Adjustments":
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Quarterly Hiring Goals by Allocation")
-    
-
-
-# ----------------- Page: Adjusted Hiring Goals -----------------
+    # ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
     st.title("📈 Adjusted Hiring Goals")
     st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
@@ -303,11 +299,7 @@ if page == "Adjusted Hiring Goals":
     for q in ["Q1", "Q2", "Q3", "Q4"]:
         chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
     df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    fig = px.line(df_long, x="Quarter", y="Hires", color="Allocation", markers=True, title="Final Hiring Targets by Quarter")
-    
-
-
-# --------------- Page 4: Finance Overview ----------------
+    # --------------- Page 4: Finance Overview ----------------
 if page == "Finance Overview":
     st.title("💰 Finance Overview")
     original_df = st.session_state.original_headcount
@@ -321,11 +313,7 @@ if page == "Finance Overview":
     st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
     st.subheader("📉 Change Summary (Bar Chart)")
-    fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
-    
-
-
-# --------------- Page 5: Success Metrics ----------------
+    # --------------- Page 5: Success Metrics ----------------
 
 # ----------------- Page: Success Metrics -----------------
 if page == "Success Metrics":
