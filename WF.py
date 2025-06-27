@@ -159,6 +159,7 @@ if page == "Hiring Speed Settings":
 
 
 
+
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter (Enhanced)")
@@ -170,28 +171,32 @@ if page == "Recruiter Capacity Model":
     if "roles_by_level_subdept" not in st.session_state:
         st.warning("Please complete the Hiring Plan by Level first.")
     else:
-        recruiter_rows = []
-        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
-            total_roles = sum(levels.values())
-            st.markdown(f"### {alloc} – {sub}")
-            col1, col2 = st.columns(2)
-            with col1:
-                assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
-            with col2:
-                q_weights = [0.25, 0.25, 0.25, 0.25]
-                for i, q in enumerate(quarters):
-                    q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
+        all_sub_depts = list(st.session_state.roles_by_level_subdept.keys())
+        sub_options = [f"{a} – {s}" for (a, s) in all_sub_depts]
+        selected = st.selectbox("Select Allocation – Sub-Department", sub_options)
+        selected_alloc, selected_sub = selected.split(" – ")
 
-            for q, q_pct in zip(quarters, q_weights):
-                q_roles = total_roles * q_pct
-                total_recruiters_needed = 0
-                for lvl, count in levels.items():
-                    q_lvl_roles = count * q_pct
-                    if level_productivity.get(lvl, 1) > 0:
-                        total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
-                total_recruiters_needed = round(total_recruiters_needed, 2)
-                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
-                recruiter_rows.append((alloc, sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
+        total_roles = sum(st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)].values())
+
+        col1, col2 = st.columns(2)
+        with col1:
+            assigned = st.number_input(f"{selected_sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{selected_sub}")
+        with col2:
+            q_weights = [0.25, 0.25, 0.25, 0.25]
+            for i, q in enumerate(quarters):
+                q_weights[i] = st.number_input(f"{selected_sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{selected_sub}_{q}_dist")
+
+        recruiter_rows = []
+        for q, q_pct in zip(quarters, q_weights):
+            q_roles = total_roles * q_pct
+            total_recruiters_needed = 0
+            for lvl, count in st.session_state.roles_by_level_subdept[(selected_alloc, selected_sub)].items():
+                q_lvl_roles = count * q_pct
+                if level_productivity.get(lvl, 1) > 0:
+                    total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
+            total_recruiters_needed = round(total_recruiters_needed, 2)
+            status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
+            recruiter_rows.append((selected_alloc, selected_sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
 
         df_recruiter_need = pd.DataFrame(recruiter_rows, columns=["Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Assigned", "Status"])
         st.dataframe(df_recruiter_need, use_container_width=True)
