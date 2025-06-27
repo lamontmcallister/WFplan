@@ -60,17 +60,18 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
+
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
-    "Adjusted Hiring Goals",
-    "Hiring Plan by Level",
     "Recruiter Capacity Model",
+    "   └ Hiring Plan by Level",
+    "   └ Hiring Speed Settings",
     "Finance Overview",
-    "Hiring Speed Settings",
     "Success Metrics",
     "Forecasting"
 ])
+
 
 
 
