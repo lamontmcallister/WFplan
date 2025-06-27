@@ -351,5 +351,5 @@ if page == "Welcome to Pure Storage":
 
     Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.
 
-    _Let’s build smarter, faster, and more strategically._
+    _Let's build smarter, faster, and more strategically._
     """)
