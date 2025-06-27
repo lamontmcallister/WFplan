@@ -156,7 +156,7 @@ if page == "   └ Hiring Speed Settings":
     st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
 
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
+        st.markdown( "Set the expected time-to-hire in days for different role levels within each sub-department. These settings affect the forecast model.")
     
     level_bands = {
         "L1–4": list(range(1, 5)),
@@ -216,7 +216,7 @@ if page == "Recruiter Capacity Model":
     st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
 
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
+        st.markdown( "Use this view to assign recruiter headcount by sub-department and compare against calculated needs by quarter. Filter by allocation to focus in.")
     
     selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
@@ -301,7 +301,7 @@ if page == "Headcount Adjustments":
     st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
 
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
+        st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
     
     edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     edited_df["Total Headcount"] = edited_df[
@@ -418,7 +418,7 @@ if page == "Success Metrics":
     st.title("📊 Success Metrics & TA Benchmarks")
 
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("Review your current TA performance against benchmarks. These benchmarks are general guidelines and should be tailored to your org.")
+        st.markdown( "This view compares current totals against original planned values. Use it to identify departments that may need finance approval for added headcount.")
 
     metrics_data = {
         "Metric": [
