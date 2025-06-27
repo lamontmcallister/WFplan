@@ -152,9 +152,12 @@ if page == "   └ Hiring Plan by Level":
         st.dataframe(df_roles_by_subdept_level)
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
-    st.title("⏱️ Hiring Speed Settings by Sub-Department")
-    st.markdown("Define time-to-hire expectations for different role levels per sub-department.")
+    st.title("Hiring Speed Settings")
+    st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
 
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
+    
     level_bands = {
         "L1–4": list(range(1, 5)),
         "L5–7": list(range(5, 8)),
@@ -209,9 +212,12 @@ if page == "   └ Hiring Speed Settings":
 
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
-    st.title("🧮 Recruiter Capacity by Quarter")
-    st.markdown("Assign recruiter headcount by sub-department. Filter by Allocation above the table.")
+    st.title("Recruiter Capacity Model")
+    st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
 
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
+    
     selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -291,9 +297,12 @@ if page == "Forecasting":
         st.dataframe(df_forecast, use_container_width=True)
 # ----------------- Page: Headcount Adjustments -----------------
 if page == "Headcount Adjustments":
-    st.title("📊 Headcount Adjustments")
-    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+    st.title("Headcount Adjustments")
+    st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
 
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
+    
     edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
@@ -404,3 +413,24 @@ if page == "Welcome to Pure Storage":
             <p style='color: white; font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically.</p>
         </div>
     """, unsafe_allow_html=True)
+
+if page == "Success Metrics":
+    st.title("📊 Success Metrics & TA Benchmarks")
+
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("Review your current TA performance against benchmarks. These benchmarks are general guidelines and should be tailored to your org.")
+
+    metrics_data = {
+        "Metric": [
+            "Avg Hires per Recruiter per Quarter",
+            "Sourcer-to-Recruiter Ratio",
+            "Coordinator Load (Reqs per Coordinator)",
+            "Avg Time-to-Fill (days)",
+            "Offer Acceptance Rate (%)"
+        ],
+        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
+        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
+    }
+
+    df_metrics = pd.DataFrame(metrics_data)
+    st.dataframe(df_metrics)
