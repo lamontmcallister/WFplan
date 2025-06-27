@@ -182,14 +182,14 @@ if page == "   └ Hiring Speed Settings":
         except Exception as e:
             st.error(f"Failed to process CSV: {e}")
 
-    for dept in sub_depts:
-        st.subheader(dept)
+    selected_dept = st.selectbox("Select a Department", sub_depts)
+st.subheader(selected_dept)
         cols = st.columns(len(level_bands))
         for i, (band, _) in enumerate(level_bands.items()):
-            with cols[i]:
-                key = f"{dept}_{band}"
-                st.session_state.speed_settings[dept][band] = st.number_input(
-                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[dept][band],
+        with cols[i]:
+            key = f"{selected_dept}_{band}"
+                st.session_state.speed_settings[selected_dept][band] = st.number_input(
+                    f"{band} (days)", min_value=1, max_value=180, value=st.session_state.speed_settings[selected_dept][band],
                     step=1, key=key
                 )
 
@@ -208,7 +208,9 @@ if page == "   └ Hiring Speed Settings":
 # ----------------- Page: Recruiter Capacity Model -----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity by Quarter")
-    st.markdown("Assign recruiter headcount by sub-department (applies across quarters). Grouped by Allocation for clarity.")
+st.markdown("Assign recruiter headcount by sub-department. Filter by Allocation above the table.")
+
+selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
 
     quarters = ["Q1", "Q2", "Q3", "Q4"]
     level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
@@ -240,6 +242,8 @@ if page == "Recruiter Capacity Model":
                         )
 
         for (alloc, sub) in unique_sub_depts:
+            if alloc != selected_filter_alloc:
+                continue
             sub_label = f"{alloc} – {sub}"
             assigned = st.session_state.recruiters_assigned_subdept[sub_label]
             for qtr in quarters:
@@ -302,15 +306,23 @@ if page == "Headcount Adjustments":
     )
     df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
+    
     st.subheader("📌 Summary by Allocation")
+
+    manual_rates = {}
+    for alloc in df_allocation_summary["Allocation"]:
+        manual_rates[alloc] = st.number_input(f"Attrition Rate (%) for {alloc}", min_value=0.0, max_value=100.0,
+                                              value=float(default_attrition_rates.get(alloc, 10.0)*100), step=0.1) / 100
+
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * manual_rates[row["Allocation"]],
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
     st.dataframe(df_allocation_summary)
 
-    st.subheader("📈 Hiring Goals by Quarter (Line Chart)")
-    chart_data = df_allocation_summary.copy()
-    for q in ["Q1", "Q2", "Q3", "Q4"]:
-        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    # ----------------- Page: Adjusted Hiring Goals -----------------
+
+        # ----------------- Page: Adjusted Hiring Goals -----------------
 if page == "Adjusted Hiring Goals":
     st.title("📈 Adjusted Hiring Goals")
     st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
@@ -343,9 +355,10 @@ if page == "Finance Overview":
     delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
 
     st.subheader("📊 Headcount Changes by Sub-Dept")
-    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
+selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
+filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
+st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
-    st.subheader("📉 Change Summary (Bar Chart)")
     # --------------- Page 5: Success Metrics ----------------
 
 # ----------------- Page: Success Metrics -----------------
