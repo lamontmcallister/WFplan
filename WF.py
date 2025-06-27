@@ -65,10 +65,11 @@ page = st.sidebar.radio("Go to", [
     "Hiring Plan by Level",
 ])
 
+
 # ----------------- Page: Hiring Plan by Level -----------------
 if page == "Hiring Plan by Level":
     st.title("📌 Hiring Plan by Level & Sub-Department")
-    st.markdown("Define how many roles you're hiring for at each level per sub-department within each allocation.")
+    st.markdown("Select a sub-department and define role counts per level.")
 
     levels = list(range(1, 9))
     subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
@@ -79,28 +80,30 @@ if page == "Hiring Plan by Level":
             for _, row in subdept_df.iterrows()
         }
 
-    full_table_data = []
-    for _, row in subdept_df.iterrows():
-        alloc = row["Allocation"]
-        sub = row["Sub-Dept"]
-        st.subheader(f"{alloc} – {sub}")
-        cols = st.columns(len(levels))
-        for i, lvl in enumerate(levels):
-            with cols[i]:
-                key = f"{alloc}_{sub}_L{lvl}"
-                st.session_state.roles_by_level_subdept[(alloc, sub)][lvl] = st.number_input(
-                    f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(alloc, sub)][lvl], key=key
-                )
-        full_table_data.append({
-            "Allocation": alloc,
-            "Sub-Dept": sub,
-            **st.session_state.roles_by_level_subdept[(alloc, sub)]
-        })
+    selected_sub = st.selectbox("Select Sub-Department", subdept_df["Sub-Dept"].unique())
+    matching_alloc = subdept_df[subdept_df["Sub-Dept"] == selected_sub]["Allocation"].values[0]
 
-    df_roles_by_subdept_level = pd.DataFrame(full_table_data)
-    st.dataframe(df_roles_by_subdept_level)
+    st.subheader(f"{matching_alloc} – {selected_sub}")
+    cols = st.columns(len(levels))
+    for i, lvl in enumerate(levels):
+        with cols[i]:
+            key = f"{matching_alloc}_{selected_sub}_L{lvl}"
+            st.session_state.roles_by_level_subdept[(matching_alloc, selected_sub)][lvl] = st.number_input(
+                f"L{lvl}", min_value=0, value=st.session_state.roles_by_level_subdept[(matching_alloc, selected_sub)][lvl], key=key
+            )
 
-    st.success("This plan feeds into recruiter capacity and forecasting calculations.")
+    # Optional view full table
+    if st.checkbox("Show full hiring plan table"):
+        full_table_data = []
+        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
+            full_table_data.append({
+                "Allocation": alloc,
+                "Sub-Dept": sub,
+                **levels
+            })
+        df_roles_by_subdept_level = pd.DataFrame(full_table_data)
+        st.dataframe(df_roles_by_subdept_level)
+
 
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "Hiring Speed Settings":
@@ -146,6 +149,45 @@ if page == "Hiring Speed Settings":
                 )
 
     st.success("Time-to-hire by sub-department and level band saved to state.")
+
+
+# ----------------- Page: Recruiter Capacity Model -----------------
+if page == "Recruiter Capacity Model":
+    st.title("🧮 Recruiter Capacity by Quarter (Based on Level Breakdown)")
+    st.markdown("Calculates recruiter need using role difficulty mix per sub-department and quarter.")
+
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
+
+    if "roles_by_level_subdept" not in st.session_state:
+        st.warning("Please complete the 'Hiring Plan by Level' page first.")
+    else:
+        recruiter_rows = []
+        for (alloc, sub), levels in st.session_state.roles_by_level_subdept.items():
+            total_roles = sum(levels.values())
+            st.markdown(f"### {alloc} – {sub}")
+            col1, col2 = st.columns(2)
+            with col1:
+                assigned = st.number_input(f"{sub} - Recruiters Assigned", min_value=0, value=1, key=f"assigned_{sub}")
+            with col2:
+                q_weights = [0.25, 0.25, 0.25, 0.25]
+                for i, q in enumerate(quarters):
+                    q_weights[i] = st.number_input(f"{sub} {q} %", min_value=0.0, max_value=1.0, value=0.25, step=0.01, key=f"{sub}_{q}_dist")
+
+            for q, q_pct in zip(quarters, q_weights):
+                q_roles = total_roles * q_pct
+                total_recruiters_needed = 0
+                for lvl, count in levels.items():
+                    q_lvl_roles = count * q_pct
+                    if level_productivity.get(lvl, 1) > 0:
+                        total_recruiters_needed += q_lvl_roles / level_productivity[lvl]
+                total_recruiters_needed = round(total_recruiters_needed, 2)
+                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
+                recruiter_rows.append((alloc, sub, q, round(q_roles), round(total_recruiters_needed, 2), assigned, status))
+
+        df_recruiter_need = pd.DataFrame(recruiter_rows, columns=["Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Assigned", "Status"])
+        st.dataframe(df_recruiter_need, use_container_width=True)
+
 
 # ----------------- Page: Forecasting -----------------
 if page == "Forecasting":
