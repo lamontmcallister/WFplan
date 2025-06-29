@@ -5,6 +5,11 @@ st.sidebar.markdown("## 🧪 Demo Mode")
 st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
 
 
+# ----------------- Demo Mode Toggle -----------------
+
+
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -45,8 +50,8 @@ st.markdown("""
 
 
 # ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("## 🧪 Demo Mode")
-st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
+
+
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
@@ -430,8 +435,8 @@ if page == "Finance Overview":
 if page == "Welcome to Pure Storage":
     
 # ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("## 🧪 Demo Mode")
-st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
+
+
 
 
 
