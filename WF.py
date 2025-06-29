@@ -301,6 +301,8 @@ if page == "Recruiter Capacity Model":
             for _, row in df_headcount.iterrows()
         } - {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
+        } - {row['Sub-Dept']}": random.randint(1, 5)
+            for _, row in df_headcount.iterrows()
         }
  – {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
