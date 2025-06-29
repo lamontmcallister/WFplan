@@ -297,7 +297,7 @@ if page == "Recruiter Capacity Model":
     # Inject recruiter assignments
     if "recruiters_assigned_subdept" not in st.session_state:
         st.session_state.recruiters_assigned_subdept = {
-            f"{row['Allocation']} - {row['Sub-Dept']}": random.randint(1, 5)
+            f"{row['Allocation']} – {row['Sub-Dept']}": 1
             for _, row in df_headcount.iterrows()
         } - {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
