@@ -299,6 +299,8 @@ if page == "Recruiter Capacity Model":
         st.session_state.recruiters_assigned_subdept = {
             f"{row['Allocation']} - {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
+        } - {row['Sub-Dept']}": random.randint(1, 5)
+            for _, row in df_headcount.iterrows()
         }
  – {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
