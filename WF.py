@@ -364,13 +364,14 @@ if page == "Headcount Adjustments":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
     
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic", key="headcount_editor")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
     st.session_state.headcount_data = edited_df
 
     df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+    default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
         lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
         axis=1
