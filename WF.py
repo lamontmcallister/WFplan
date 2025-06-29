@@ -291,26 +291,9 @@ if page == "Recruiter Capacity Model":
         all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
         unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
 
-        
-    
-    
-    # Inject recruiter assignments
-    if "recruiters_assigned_subdept" not in st.session_state:
-        st.session_state.recruiters_assigned_subdept = {
-            f"{row['Allocation']} – {row['Sub-Dept']}": 1
-            for _, row in df_headcount.iterrows()
-        } - {row['Sub-Dept']}": random.randint(1, 5)
-            for _, row in df_headcount.iterrows()
-        } - {row['Sub-Dept']}": random.randint(1, 5)
-            for _, row in df_headcount.iterrows()
-        }
- – {row['Sub-Dept']}": random.randint(1, 5)
-            for _, row in df_headcount.iterrows()
-        }
- – {row['Sub-Dept']}": random.randint(1, 5)
-            for _, row in df_headcount.iterrows()
-        }
- – {s}": 1 for (a, s) in unique_sub_depts
+        if "recruiters_assigned_subdept" not in st.session_state:
+            st.session_state.recruiters_assigned_subdept = {
+                f"{a} – {s}": 1 for (a, s) in unique_sub_depts
             }
 
         alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
