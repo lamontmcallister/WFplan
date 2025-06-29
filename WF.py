@@ -38,10 +38,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("## 🧪 Demo Mode")
-st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
-
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # ----------------- Load or initialize data -----------------
@@ -140,6 +136,11 @@ if st.session_state.get("demo_mode"):
     if st.button("Exit Demo Mode"):
         st.session_state.demo_mode = False
         st.rerun()
+
+# ----------------- Demo Mode Toggle -----------------
+st.sidebar.markdown("## 🧪 Demo Mode")
+st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
+
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
@@ -421,10 +422,6 @@ if page == "Finance Overview":
 # ----------------- Page: Welcome to Pure Storage -----------------
 if page == "Welcome to Pure Storage":
     
-# ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("## 🧪 Demo Mode")
-st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
-
 st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
     st.markdown("""
