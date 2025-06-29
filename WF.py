@@ -292,10 +292,14 @@ if page == "Recruiter Capacity Model":
         unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
 
         
+    
     # Inject recruiter assignments
     if "recruiters_assigned_subdept" not in st.session_state:
         st.session_state.recruiters_assigned_subdept = {
             f"{row['Allocation']} – {row['Sub-Dept']}": random.randint(1, 5)
+            for _, row in df_headcount.iterrows()
+        }
+ – {row['Sub-Dept']}": random.randint(1, 5)
             for _, row in df_headcount.iterrows()
         }
  – {s}": 1 for (a, s) in unique_sub_depts
