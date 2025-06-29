@@ -142,6 +142,8 @@ if st.session_state.get("demo_mode"):
     }
 
     # Inject hiring speeds
+    if "speed_settings" not in st.session_state:
+        st.session_state.speed_settings = {}
     for sub in df_headcount["Sub-Dept"].unique():
         st.session_state.speed_settings[sub] = {
             "L1–4": random.choice([25, 30, 35]),
