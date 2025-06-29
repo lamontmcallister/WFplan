@@ -200,7 +200,14 @@ if page == "   └ Hiring Plan by Level":
                 key = (selected_alloc, selected_sub, selected_qtr)
             if key not in st.session_state.roles_by_level_subdept_quarter:
                 st.session_state.roles_by_level_subdept_quarter[key] = {lvl: 0 for lvl in range(1, 9)}
-            value = st.session_state.roles_by_level_subdept_quarter[key][lvl],
+            
+            key = (selected_alloc, selected_sub, selected_qtr)
+            if key not in st.session_state.roles_by_level_subdept_quarter:
+                st.session_state.roles_by_level_subdept_quarter[key] = {lvl: 0 for lvl in range(1, 9)}
+            value = st.session_state.roles_by_level_subdept_quarter[key][lvl]
+            if value == 0:
+                st.info(f"No hiring data entered yet for level {lvl}. Adjust the plan above or enter a new value.")
+,
                 key=key
             )
 
