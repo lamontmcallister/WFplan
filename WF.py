@@ -142,8 +142,6 @@ if st.session_state.get("demo_mode"):
     }
 
     # Inject hiring speeds
-    if "speed_settings" not in st.session_state:
-        st.session_state.speed_settings = {}
     for sub in df_headcount["Sub-Dept"].unique():
         st.session_state.speed_settings[sub] = {
             "L1–4": random.choice([25, 30, 35]),
@@ -198,7 +196,10 @@ if page == "   └ Hiring Plan by Level":
             key = f"{selected_alloc}_{selected_sub}_{selected_qtr}_L{lvl}"
             st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
                 f"L{lvl}", min_value=0,
-                value=st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl],
+                key = (selected_alloc, selected_sub, selected_qtr)
+            if key not in st.session_state.roles_by_level_subdept_quarter:
+                st.session_state.roles_by_level_subdept_quarter[key] = {lvl: 0 for lvl in range(1, 9)}
+            value = st.session_state.roles_by_level_subdept_quarter[key][lvl],
                 key=key
             )
 
