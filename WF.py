@@ -1,5 +1,10 @@
 st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
+# ----------------- Demo Mode Toggle -----------------
+st.sidebar.markdown("## 🧪 Demo Mode")
+st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
