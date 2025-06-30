@@ -93,6 +93,66 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
 
+
+# ----------------- Demo Mode Toggle -----------------
+st.sidebar.markdown("### 🧪 Demo Mode")
+demo_mode = st.sidebar.checkbox("Enable Demo Mode", key="demo_mode_toggle")
+
+if demo_mode:
+    st.warning("🚧 You are viewing a sample dashboard in Demo Mode. All data is randomly generated.")
+    import random
+
+    # Generate demo headcount
+    demo_allocs = ["Business", "Core R&D", "G&A"]
+    demo_subdepts = ["Sales", "Eng", "Finance", "Marketing", "People Ops"]
+    demo_data = []
+    for _ in range(15):
+        alloc = random.choice(demo_allocs)
+        sub = random.choice(demo_subdepts)
+        demo_data.append({
+            "Allocation": alloc,
+            "Sub-Dept": sub,
+            "Employees in seat": random.randint(10, 100),
+            "Future Starts": random.randint(0, 10),
+            "FY26 Planned + Open": random.randint(0, 15),
+            "FY26 Planned - not yet opened": random.randint(0, 10)
+        })
+    demo_df = pd.DataFrame(demo_data)
+    demo_df["Total Headcount"] = demo_df[
+        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+    ].sum(axis=1)
+    st.session_state.headcount_data = demo_df
+    df_headcount = demo_df
+
+    # Set demo roles_by_level_subdept_quarter
+    levels = list(range(1, 9))
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    st.session_state.roles_by_level_subdept_quarter = {
+        (row["Allocation"], row["Sub-Dept"], q): {lvl: random.randint(0, 5) for lvl in levels}
+        for _, row in demo_df.iterrows() for q in quarters
+    }
+
+    # Set demo speed_settings
+    level_bands = {
+        "L1–4": list(range(1, 5)),
+        "L5–7": list(range(5, 8)),
+        "L8–10": list(range(8, 11))
+    }
+    st.session_state.speed_settings = {
+        sub: {
+            band: random.choice([25, 35, 45]) for band in level_bands
+        }
+        for sub in demo_df["Sub-Dept"].unique()
+    }
+
+    # Assign demo recruiter headcount
+    all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
+    unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
+    st.session_state.recruiters_assigned_subdept = {
+        f"{a} – {s}": random.randint(1, 5) for (a, s) in unique_sub_depts
+    }
+
+
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
