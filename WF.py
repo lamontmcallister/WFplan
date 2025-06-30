@@ -13,7 +13,6 @@ st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled ex
 
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 
 
@@ -198,15 +197,7 @@ if page == "   └ Hiring Plan by Level":
             st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
                 f"L{lvl}", min_value=0,
                 key = (selected_alloc, selected_sub, selected_qtr)
-            if key not in st.session_state.roles_by_level_subdept_quarter:
-                st.session_state.roles_by_level_subdept_quarter[key] = {lvl: 0 for lvl in range(1, 9)}
-            
-            key = (selected_alloc, selected_sub, selected_qtr)
-            if key not in st.session_state.roles_by_level_subdept_quarter:
-                st.session_state.roles_by_level_subdept_quarter[key] = {lvl: 0 for lvl in range(1, 9)}
-            value = st.session_state.roles_by_level_subdept_quarter[key][lvl]
-            if value == 0:
-                st.info(f"No hiring data entered yet for level {lvl}. Adjust the plan above or enter a new value.")
+            value = st.session_state.roles_by_level_subdept_quarter.get(key, {}).get(lvl, 0)
 ,
                 key=key
             )
