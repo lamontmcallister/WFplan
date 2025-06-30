@@ -172,24 +172,30 @@ page = st.sidebar.radio("Go to", [
 # ----------------- Page: Hiring Plan by Level -----------------
 if page == "Hiring Plan by Level":
     st.title("📐 Hiring Plan by Level")
-    st.markdown("Define how many roles you plan to hire by level, sub-department, and quarter.")
+    st.markdown("Define hiring goals across allocation, sub-department, level, and quarter.")
+
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    levels = list(range(1, 9))
 
     if "hiring_plan_data" not in st.session_state:
-        sample_data = [
+        example_rows = [
             {"Allocation": "Core R&D", "Sub-Dept": "Eng", "Quarter": "Q1", "Level": 3, "Role Count": 5},
-            {"Allocation": "Business", "Sub-Dept": "Sales", "Quarter": "Q2", "Level": 5, "Role Count": 3},
+            {"Allocation": "Business", "Sub-Dept": "Sales", "Quarter": "Q2", "Level": 5, "Role Count": 4},
+            {"Allocation": "G&A", "Sub-Dept": "People", "Quarter": "Q1", "Level": 2, "Role Count": 2}
         ]
-        st.session_state.hiring_plan_data = pd.DataFrame(sample_data)
+        st.session_state.hiring_plan_data = pd.DataFrame(example_rows)
 
-    edited_df = st.data_editor(
+    st.markdown("You can add rows by clicking the ➕ button below.")
+    df_plan = st.data_editor(
         st.session_state.hiring_plan_data,
         num_rows="dynamic",
         use_container_width=True,
         key="hiring_plan_editor"
     )
 
-    st.session_state.hiring_plan_data = edited_df
-    st.success("Your hiring plan has been updated.")
+    st.session_state.hiring_plan_data = df_plan
+
+    st.success("Hiring plan saved to session.")
 
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
