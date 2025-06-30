@@ -13,7 +13,6 @@ st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled ex
 
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 
 
@@ -171,49 +170,27 @@ page = st.sidebar.radio("Go to", [
 
 
 # ----------------- Page: Hiring Plan by Level -----------------
-if page == "   └ Hiring Plan by Level":
-    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter")
-    st.markdown("Define planned hires per level by department and quarter.")
+if page == "Hiring Plan by Level":
+    st.title("📐 Hiring Plan by Level")
+    st.markdown("Define how many roles you plan to hire by level, sub-department, and quarter.")
 
-    levels = list(range(1, 9))
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
+    if "hiring_plan_data" not in st.session_state:
+        sample_data = [
+            {"Allocation": "Core R&D", "Sub-Dept": "Eng", "Quarter": "Q1", "Level": 3, "Role Count": 5},
+            {"Allocation": "Business", "Sub-Dept": "Sales", "Quarter": "Q2", "Level": 5, "Role Count": 3},
+        ]
+        st.session_state.hiring_plan_data = pd.DataFrame(sample_data)
 
-    if "roles_by_level_subdept_quarter" not in st.session_state:
-        st.session_state.roles_by_level_subdept_quarter = {
-            (row["Allocation"], row["Sub-Dept"], q): {lvl: 0 for lvl in levels}
-            for _, row in subdept_df.iterrows() for q in quarters
-        }
+    edited_df = st.data_editor(
+        st.session_state.hiring_plan_data,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="hiring_plan_editor"
+    )
 
-    selected_alloc = st.selectbox("Select Allocation", subdept_df["Allocation"].unique())
-    sub_options = subdept_df[subdept_df["Allocation"] == selected_alloc]["Sub-Dept"].unique()
-    selected_sub = st.selectbox("Select Sub-Department", sub_options)
-    selected_qtr = st.selectbox("Select Quarter", quarters)
+    st.session_state.hiring_plan_data = edited_df
+    st.success("Your hiring plan has been updated.")
 
-    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}")
-    cols = st.columns(len(levels))
-    for i, lvl in enumerate(levels):
-        with cols[i]:
-            key = f"{selected_alloc}_{selected_sub}_{selected_qtr}_L{lvl}"
-            st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
-                f"L{lvl}", min_value=0,
-                key = (selected_alloc, selected_sub, selected_qtr)
-            value = st.session_state.roles_by_level_subdept_quarter.get(key, {}).get(lvl, 0)
-,
-                key=key
-            )
-
-    if st.checkbox("Show full hiring plan table"):
-        full_table_data = []
-        for (alloc, sub, qtr), level_counts in st.session_state.roles_by_level_subdept_quarter.items():
-            full_table_data.append({
-                "Allocation": alloc,
-                "Sub-Dept": sub,
-                "Quarter": qtr,
-                **level_counts
-            })
-        df_roles_by_subdept_level = pd.DataFrame(full_table_data)
-        st.dataframe(df_roles_by_subdept_level)
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
     st.title("Hiring Speed Settings")
