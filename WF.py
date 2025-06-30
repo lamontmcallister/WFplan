@@ -1,15 +1,3 @@
-import streamlit as st
-st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
-
-# ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("## 🧪 Demo Mode")
-st.sidebar.checkbox("Enable Demo Mode", key="demo_mode", help="Use pre-filled example data to explore the dashboard.")
-
-
-# ----------------- Demo Mode Toggle -----------------
-
-
-
 
 import streamlit as st
 import pandas as pd
@@ -48,11 +36,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-
-# ----------------- Demo Mode Toggle -----------------
-
-
 
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
@@ -110,50 +93,6 @@ df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Head
 # ----------------- Sidebar Navigation -----------------
 st.sidebar.title("Navigation")
 
-
-
-# ----------------- Demo Mode Data Injection -----------------
-if st.session_state.get("demo_mode"):
-    st.warning("🚧 You’re in Demo Mode. All data is randomly generated for demonstration purposes. Click 'Exit Demo Mode' to begin using your own data.")
-    import random
-    import numpy as np
-    sample_allocs = ["Business", "Core R&D", "G&A"]
-    sample_subdepts = ["Marketing", "Sales", "Eng", "People", "Finance"]
-    demo_rows = []
-    for _ in range(10):
-        alloc = random.choice(sample_allocs)
-        sub = random.choice(sample_subdepts)
-        demo_rows.append({
-            "Allocation": alloc,
-            "Sub-Dept": sub,
-            "Employees in seat": random.randint(10, 120),
-            "Future Starts": random.randint(0, 10),
-            "FY26 Planned + Open": random.randint(5, 15),
-            "FY26 Planned - not yet opened": random.randint(0, 8)
-        })
-    df_headcount = pd.DataFrame(demo_rows)
-
-    # Inject roles by level and quarter
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    levels = list(range(1, 9))
-    st.session_state.roles_by_level_subdept_quarter = {
-        (row["Allocation"], row["Sub-Dept"], q): {lvl: random.randint(0, 4) for lvl in levels}
-        for _, row in df_headcount.iterrows() for q in quarters
-    }
-
-    # Inject hiring speeds
-    for sub in df_headcount["Sub-Dept"].unique():
-        st.session_state.speed_settings[sub] = {
-            "L1–4": random.choice([25, 30, 35]),
-            "L5–7": random.choice([45, 50, 60]),
-            "L8–10": random.choice([60, 70, 80])
-        }
-
-    st.markdown("💪 When you're ready to start your real plan, click below.")
-    if st.button("Exit Demo Mode"):
-        st.session_state.demo_mode = False
-        st.rerun()
-
 page = st.sidebar.radio("Go to", [
     "Welcome to Pure Storage",
     "Headcount Adjustments",
@@ -170,33 +109,47 @@ page = st.sidebar.radio("Go to", [
 
 
 # ----------------- Page: Hiring Plan by Level -----------------
-if page == "Hiring Plan by Level":
-    st.title("📐 Hiring Plan by Level")
-    st.markdown("Define hiring goals across allocation, sub-department, level, and quarter.")
+if page == "   └ Hiring Plan by Level":
+    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter")
+    st.markdown("Define planned hires per level by department and quarter.")
 
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
     levels = list(range(1, 9))
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
 
-    if "hiring_plan_data" not in st.session_state:
-        example_rows = [
-            {"Allocation": "Core R&D", "Sub-Dept": "Eng", "Quarter": "Q1", "Level": 3, "Role Count": 5},
-            {"Allocation": "Business", "Sub-Dept": "Sales", "Quarter": "Q2", "Level": 5, "Role Count": 4},
-            {"Allocation": "G&A", "Sub-Dept": "People", "Quarter": "Q1", "Level": 2, "Role Count": 2}
-        ]
-        st.session_state.hiring_plan_data = pd.DataFrame(example_rows)
+    if "roles_by_level_subdept_quarter" not in st.session_state:
+        st.session_state.roles_by_level_subdept_quarter = {
+            (row["Allocation"], row["Sub-Dept"], q): {lvl: 0 for lvl in levels}
+            for _, row in subdept_df.iterrows() for q in quarters
+        }
 
-    st.markdown("You can add rows by clicking the ➕ button below.")
-    df_plan = st.data_editor(
-        st.session_state.hiring_plan_data,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="hiring_plan_editor"
-    )
+    selected_alloc = st.selectbox("Select Allocation", subdept_df["Allocation"].unique())
+    sub_options = subdept_df[subdept_df["Allocation"] == selected_alloc]["Sub-Dept"].unique()
+    selected_sub = st.selectbox("Select Sub-Department", sub_options)
+    selected_qtr = st.selectbox("Select Quarter", quarters)
 
-    st.session_state.hiring_plan_data = df_plan
+    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}")
+    cols = st.columns(len(levels))
+    for i, lvl in enumerate(levels):
+        with cols[i]:
+            key = f"{selected_alloc}_{selected_sub}_{selected_qtr}_L{lvl}"
+            st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
+                f"L{lvl}", min_value=0,
+                value=st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl],
+                key=key
+            )
 
-    st.success("Hiring plan saved to session.")
-
+    if st.checkbox("Show full hiring plan table"):
+        full_table_data = []
+        for (alloc, sub, qtr), level_counts in st.session_state.roles_by_level_subdept_quarter.items():
+            full_table_data.append({
+                "Allocation": alloc,
+                "Sub-Dept": sub,
+                "Quarter": qtr,
+                **level_counts
+            })
+        df_roles_by_subdept_level = pd.DataFrame(full_table_data)
+        st.dataframe(df_roles_by_subdept_level)
 # ----------------- Page: Hiring Speed Settings -----------------
 if page == "   └ Hiring Speed Settings":
     st.title("Hiring Speed Settings")
@@ -350,14 +303,13 @@ if page == "Headcount Adjustments":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
     
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic", key="headcount_editor")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
     st.session_state.headcount_data = edited_df
 
     df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
-    default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
     df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
         lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
         axis=1
@@ -421,12 +373,7 @@ if page == "Finance Overview":
 
 # ----------------- Page: Welcome to Pure Storage -----------------
 if page == "Welcome to Pure Storage":
-    
-# ----------------- Demo Mode Toggle -----------------
-
-
-
-
+    st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
     st.markdown("""
         <style>
