@@ -154,7 +154,7 @@ if demo_mode:
 
 
 page = st.sidebar.radio("Go to", [
-    "Welcome to Pure Storage",
+    "Welcome to Workforce Planning",
     "Headcount Adjustments",
     "Recruiter Capacity Model",
     "   └ Hiring Plan by Level",
@@ -432,7 +432,7 @@ if page == "Finance Overview":
 
 
 # ----------------- Page: Welcome to Pure Storage -----------------
-if page == "Welcome to Pure Storage":
+if page == "Welcome to Workforce Planning":
     st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
 
     st.markdown("""
