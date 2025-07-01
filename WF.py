@@ -154,7 +154,7 @@ if demo_mode:
 
 
 page = st.sidebar.radio("Go to", [
-    "Welcome to Pure Storage",
+    "Welcome to WF Planning",
     "Headcount Adjustments",
     "Recruiter Capacity Model",
     "   └ Hiring Plan by Level",
