@@ -46,69 +46,52 @@ if "regional_staffing" not in st.session_state:
         } for r in regions
     }
 
-page = st.sidebar.radio("Go to", [
-    "🏠 Overview",
-    "📍 Properties",
-    "👷 PM Capacity",
-    "🔧 Tech Capacity",
-    "📊 Staffing Overview"
-])
+# Hierarchical sidebar navigation
+navigation = {
+    "🏠 Overview": [],
+    "📍 Properties": ["📊 Staffing Overview", "👷 PM Capacity", "🔧 Tech Capacity"]
+}
 
+page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
+
+# Overview
 if page == "🏠 Overview":
     st.title("Roostock Property Ops Dashboard")
     st.markdown("""
     Track property volume, allocate Property Managers (PMs) and Technicians (Techs), and forecast staffing needs across regions.
     """)
 
+# Properties with Filters
 if page == "📍 Properties":
     st.title("📍 Properties by Region")
-    st.dataframe(st.session_state.properties)
+
+    region_filter = st.selectbox("Filter by Region", ["All"] + regions)
+    type_filter = st.selectbox("Filter by Property Type", ["All"] + types)
+
+    df_filtered = st.session_state.properties.copy()
+    if region_filter != "All":
+        df_filtered = df_filtered[df_filtered["Region"] == region_filter]
+    if type_filter != "All":
+        df_filtered = df_filtered[df_filtered["Property Type"] == type_filter]
+
+    st.dataframe(df_filtered)
 
     with st.expander("➕ Add Property"):
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            region = st.selectbox("Region", regions)
+            region = st.selectbox("Region", regions, key="add_region")
         with col2:
-            ptype = st.selectbox("Type", types)
+            ptype = st.selectbox("Type", types, key="add_type")
         with col3:
-            units = st.number_input("Units", min_value=1, step=1)
+            units = st.number_input("Units", min_value=1, step=1, key="add_units")
         with col4:
-            complexity = st.slider("Complexity", 1, 5, 3)
+            complexity = st.slider("Complexity", 1, 5, 3, key="add_complexity")
         if st.button("Add Property"):
             new_row = pd.DataFrame([[region, ptype, units, complexity]], columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
             st.session_state.properties = pd.concat([st.session_state.properties, new_row], ignore_index=True)
             st.success("Added!")
 
-if page == "👷 PM Capacity":
-    st.title("👷 Property Manager Capacity Settings")
-    for r in regions:
-        with st.expander(f"{r}"):
-            st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
-                f"PMs Assigned in {r}", min_value=0,
-                value=st.session_state.regional_staffing[r]["PMs Assigned"],
-                key=f"pm_assigned_{r}"
-            )
-            st.session_state.regional_staffing[r]["PM Capacity"] = st.number_input(
-                f"PM Capacity (Homes per PM) in {r}", min_value=1,
-                value=st.session_state.regional_staffing[r]["PM Capacity"],
-                key=f"pm_capacity_{r}"
-            )
-
-if page == "🔧 Tech Capacity":
-    st.title("🔧 Technician Capacity Settings")
-    for r in regions:
-        with st.expander(f"{r}"):
-            st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
-                f"Techs Assigned in {r}", min_value=0,
-                value=st.session_state.regional_staffing[r]["Techs Assigned"],
-                key=f"tech_assigned_{r}"
-            )
-            st.session_state.regional_staffing[r]["Tech Capacity"] = st.number_input(
-                f"Tech Capacity (Requests/Month) in {r}", min_value=1,
-                value=st.session_state.regional_staffing[r]["Tech Capacity"],
-                key=f"tech_capacity_{r}"
-            )
-
+# Staffing Overview
 if page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
     efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
@@ -140,3 +123,35 @@ if page == "📊 Staffing Overview":
 
     df_summary = pd.DataFrame(summary_rows)
     st.dataframe(df_summary, use_container_width=True)
+
+# PM Capacity
+if page == "👷 PM Capacity":
+    st.title("👷 Property Manager Capacity Settings")
+    for r in regions:
+        with st.expander(f"{r}"):
+            st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
+                f"PMs Assigned in {r}", min_value=0,
+                value=st.session_state.regional_staffing[r]["PMs Assigned"],
+                key=f"pm_assigned_{r}"
+            )
+            st.session_state.regional_staffing[r]["PM Capacity"] = st.number_input(
+                f"PM Capacity (Homes per PM) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["PM Capacity"],
+                key=f"pm_capacity_{r}"
+            )
+
+# Tech Capacity
+if page == "🔧 Tech Capacity":
+    st.title("🔧 Technician Capacity Settings")
+    for r in regions:
+        with st.expander(f"{r}"):
+            st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
+                f"Techs Assigned in {r}", min_value=0,
+                value=st.session_state.regional_staffing[r]["Techs Assigned"],
+                key=f"tech_assigned_{r}"
+            )
+            st.session_state.regional_staffing[r]["Tech Capacity"] = st.number_input(
+                f"Tech Capacity (Requests/Month) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["Tech Capacity"],
+                key=f"tech_capacity_{r}"
+            )
