@@ -1,107 +1,153 @@
-# property_dashboard.py
+# Part 1: Property Management + Technician Capacity Dashboard (Roostock-Ready)
+# --- Full Streamlit Rework ---
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 
-st.set_page_config(page_title="Property Capacity Dashboard", layout="wide")
+# --------------- Styling ---------------
+st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
-# --- Styling ---
 st.markdown("""
     <style>
-        body {
-            background-color: #1e1e1e;
-            color: white;
+        body, .css-18e3th9, .css-1d391kg {
+            background-color: #1e1e1e !important;
+            color: white !important;
         }
-        .stButton>button {
+        .stButton > button {
             background-color: #ff4b2b;
             color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            font-size: 1rem;
+            border-radius: 6px;
         }
-        .stTextInput>div>input,
-        .stNumberInput input,
-        .stSelectbox>div>div>div {
-            background-color: #333;
-            color: white;
+        .stButton > button:hover {
+            background-color: #ff6b4b;
+            transition: 0.3s;
         }
-        .stDataFrame, .stDataTable {
-            color: white;
+        .stTextInput > div > input,
+        .stNumberInput input {
+            background-color: #333 !important;
+            color: white !important;
+        }
+        .stDataFrame, .stDataTable, .stMarkdown {
+            color: white !important;
+        }
+        .st-expanderContent {
+            background-color: #222 !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏡 Property Management & Technician Capacity Dashboard")
+# ----------------- Sidebar Nav -----------------
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", [
+    "🏠 Overview",
+    "📍 Add Properties by Region",
+    "🧑‍💼 Property Manager Capacity",
+    "🔧 Technician Capacity",
+    "📈 Efficiency Forecast"
+])
 
-# ------------------------------
-# Initialize Session State
-# ------------------------------
-if "property_data" not in st.session_state:
-    st.session_state.property_data = pd.DataFrame(columns=["Region", "Property Type", "Units", "Complexity Score"])
+# ----------------- Session Init -----------------
+if "properties" not in st.session_state:
+    st.session_state.properties = pd.DataFrame(columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
+if "pm_capacity" not in st.session_state:
+    st.session_state.pm_capacity = 50
+if "tech_capacity" not in st.session_state:
+    st.session_state.tech_capacity = 10
+if "requests_per_home" not in st.session_state:
+    st.session_state.requests_per_home = 2
+if "num_pms" not in st.session_state:
+    st.session_state.num_pms = 4
+if "num_techs" not in st.session_state:
+    st.session_state.num_techs = 10
 
-# ------------------------------
-# Inputs for Property Additions
-# ------------------------------
-with st.expander("➕ Add Property Info"):
-    col1, col2, col3, col4 = st.columns(4)
+# ----------------- Page 1: Overview -----------------
+if page == "🏠 Overview":
+    st.title("🏠 Roostock Property Ops Dashboard")
+    st.markdown("""
+    Welcome to your all-in-one dashboard for managing properties, staffing capacity, and technician forecasting.
+
+    - 📍 Track properties by region and type
+    - 🧑‍💼 Model property manager workload by complexity
+    - 🔧 Forecast technician needs by service volume
+    - 📈 Simulate improvements in efficiency to see impact on output
+    """)
+
+# ----------------- Page 2: Add Properties -----------------
+if page == "📍 Add Properties by Region":
+    st.title("📍 Properties by Region")
+    with st.form("add_property_form"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            region = st.selectbox("Region", ["West", "Midwest", "South", "Northeast", "Pacific"])
+        with col2:
+            ptype = st.selectbox("Property Type", ["Single-Family", "Multi-Unit", "Luxury"])
+        with col3:
+            units = st.number_input("Number of Units", min_value=1, value=1)
+        complexity = st.slider("Complexity (1 = easy, 5 = very complex)", 1, 5, value=3)
+        submitted = st.form_submit_button("Add Property")
+        if submitted:
+            new_row = pd.DataFrame([[region, ptype, units, complexity]],
+                                   columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
+            st.session_state.properties = pd.concat([st.session_state.properties, new_row], ignore_index=True)
+            st.success("✅ Property added!")
+
+    st.subheader("Current Property Inventory")
+    st.dataframe(st.session_state.properties, use_container_width=True)
+
+# ----------------- Page 3: Property Manager Capacity -----------------
+if page == "🧑‍💼 Property Manager Capacity":
+    st.title("🧑‍💼 Property Manager Capacity")
+
+    st.number_input("Total Property Managers", min_value=1, step=1,
+                    value=st.session_state.num_pms, key="num_pms")
+    st.number_input("Avg Homes per PM (base)", min_value=1, step=1,
+                    value=st.session_state.pm_capacity, key="pm_capacity")
+
+    total_capacity = st.session_state.num_pms * st.session_state.pm_capacity
+    efficiency_pct = st.slider("Efficiency Increase (%)", 0, 50, value=15)
+    improved_capacity = int(total_capacity * (1 + efficiency_pct / 100))
+
+    st.metric("Current Capacity", f"{total_capacity} Homes")
+    st.metric("🔧 With Efficiency Increase", f"{improved_capacity} Homes")
+
+# ----------------- Page 4: Technician Capacity -----------------
+if page == "🔧 Technician Capacity":
+    st.title("🔧 Technician Capacity Model")
+
+    st.number_input("Total Technicians", min_value=1, step=1,
+                    value=st.session_state.num_techs, key="num_techs")
+    st.number_input("Requests per Technician / Month", min_value=1, step=1,
+                    value=st.session_state.tech_capacity, key="tech_capacity")
+    st.number_input("Avg Requests per Home / Month", min_value=1, step=1,
+                    value=st.session_state.requests_per_home, key="requests_per_home")
+
+    homes_supported = (st.session_state.num_techs * st.session_state.tech_capacity) / st.session_state.requests_per_home
+    homes_improved = homes_supported * (1 + efficiency_pct / 100)
+
+    st.metric("Current Home Support Capacity", f"{int(homes_supported)} Homes")
+    st.metric("🚀 With Efficiency Increase", f"{int(homes_improved)} Homes")
+
+# ----------------- Page 5: Forecast -----------------
+if page == "📈 Efficiency Forecast":
+    st.title("📈 Efficiency Forecasting")
+
+    st.markdown("Use this page to simulate improvements in service and property management capacity.")
+    efficiency_pct = st.slider("Efficiency Increase (%)", 0, 50, value=15)
+
+    pm_base = st.session_state.pm_capacity * st.session_state.num_pms
+    tech_base = (st.session_state.tech_capacity * st.session_state.num_techs) / st.session_state.requests_per_home
+
+    pm_out = int(pm_base * (1 + efficiency_pct / 100))
+    tech_out = int(tech_base * (1 + efficiency_pct / 100))
+
+    col1, col2 = st.columns(2)
     with col1:
-        region = st.selectbox("Region", ["West", "Midwest", "South", "Northeast", "Pacific"])
+        st.metric("🏘️ PM Capacity (Homes)", f"{pm_out}")
     with col2:
-        ptype = st.selectbox("Property Type", ["Single-Family", "Multi-Unit", "Luxury"])
-    with col3:
-        units = st.number_input("Units (e.g., 1 house or 10-unit building)", min_value=1, step=1)
-    with col4:
-        complexity = st.slider("Complexity Score (1 = easy, 5 = hard)", 1, 5, 3)
+        st.metric("🔧 Technician Capacity (Homes)", f"{tech_out}")
 
-    if st.button("Add Property"):
-        new_row = {"Region": region, "Property Type": ptype, "Units": units, "Complexity Score": complexity}
-        st.session_state.property_data = st.session_state.property_data.append(new_row, ignore_index=True)
-
-# ------------------------------
-# Show Properties Table
-# ------------------------------
-st.subheader("🏘️ Current Property Inventory")
-st.dataframe(st.session_state.property_data)
-
-# ------------------------------
-# Property Manager Capacity Model
-# ------------------------------
-st.subheader("🧮 Property Manager Capacity")
-pm_capacity_per_score = {1: 70, 2: 60, 3: 50, 4: 40, 5: 30}
-total_units = st.session_state.property_data["Units"].sum()
-avg_complexity = st.session_state.property_data["Complexity Score"].mean() if not st.session_state.property_data.empty else 3
-base_pm_capacity = pm_capacity_per_score.get(round(avg_complexity), 50)
-
-num_managers = st.number_input("Number of Property Managers", min_value=1, step=1, value=3)
-efficiency_boost = st.checkbox("Apply 15% Efficiency Boost?")
-
-pm_current_capacity = base_pm_capacity * num_managers
-pm_boosted_capacity = round(pm_current_capacity * 1.15) if efficiency_boost else pm_current_capacity
-
-st.markdown(f"""
-- 🔢 Average Complexity Score: **{avg_complexity:.1f}**
-- 👷 Property Managers: **{num_managers}**
-- 🏡 Homes Managed Now: **{pm_current_capacity}**
-- 🚀 With Efficiency Boost: **{pm_boosted_capacity}**
-""")
-
-# ------------------------------
-# Technician Capacity Model
-# ------------------------------
-st.subheader("🔧 Technician Capacity Model")
-
-col1, col2, col3 = st.columns(3)
-with col1:
-    techs = st.number_input("Number of Technicians", min_value=1, step=1, value=5)
-with col2:
-    reqs_per_unit = st.number_input("Service Requests / Unit / Month", min_value=1.0, value=2.0, step=0.1)
-with col3:
-    tech_capacity = st.number_input("Requests Each Tech Can Handle / Month", min_value=1, value=20)
-
-total_reqs = total_units * reqs_per_unit
-homes_supported = (techs * tech_capacity) / reqs_per_unit
-homes_supported_boosted = homes_supported * 1.15 if efficiency_boost else homes_supported
-
-st.markdown(f"""
-- 🧮 Total Requests: **{total_reqs:.0f} / month**
-- 🔧 Techs: **{techs}**
-- 🏘️ Homes Supported: **{homes_supported:.1f}**
-- ⚡ With Efficiency Boost: **{homes_supported_boosted:.1f}**
-""")
+    st.caption("Note: Technician capacity is based on monthly service request assumptions.")
