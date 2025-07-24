@@ -5,7 +5,6 @@ import random
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
-# Styling
 st.markdown("""
     <style>
         body, .css-18e3th9, .css-1d391kg {
@@ -26,22 +25,27 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
 regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
+types = ["Single-Family", "Multi-Unit", "Luxury"]
+
 if "properties" not in st.session_state:
     st.session_state.properties = pd.DataFrame([{
         "Region": random.choice(regions),
-        "Property Type": random.choice(["Single-Family", "Multi-Unit", "Luxury"]),
+        "Property Type": random.choice(types),
         "Units": random.randint(1, 12),
         "Complexity (1-5)": random.randint(1, 5)
     } for _ in range(100)])
 
 if "regional_staffing" not in st.session_state:
     st.session_state.regional_staffing = {
-        r: {"PMs Assigned": 2, "Techs Assigned": 3} for r in regions
+        r: {
+            "PMs Assigned": 2,
+            "PM Capacity": random.choice([40, 45, 50, 60]),
+            "Techs Assigned": 3,
+            "Tech Capacity": random.choice([15, 20, 25])
+        } for r in regions
     }
 
-# Sidebar navigation
 page = st.sidebar.radio("Go to", [
     "🏠 Overview",
     "📍 Properties",
@@ -50,17 +54,14 @@ page = st.sidebar.radio("Go to", [
     "📊 Staffing Overview"
 ])
 
-# Overview
 if page == "🏠 Overview":
     st.title("Roostock Property Ops Dashboard")
     st.markdown("""
     Track property volume, allocate Property Managers (PMs) and Technicians (Techs), and forecast staffing needs across regions.
     """)
 
-# Properties
 if page == "📍 Properties":
     st.title("📍 Properties by Region")
-
     st.dataframe(st.session_state.properties)
 
     with st.expander("➕ Add Property"):
@@ -68,7 +69,7 @@ if page == "📍 Properties":
         with col1:
             region = st.selectbox("Region", regions)
         with col2:
-            ptype = st.selectbox("Type", ["Single-Family", "Multi-Unit", "Luxury"])
+            ptype = st.selectbox("Type", types)
         with col3:
             units = st.number_input("Units", min_value=1, step=1)
         with col4:
@@ -78,44 +79,46 @@ if page == "📍 Properties":
             st.session_state.properties = pd.concat([st.session_state.properties, new_row], ignore_index=True)
             st.success("Added!")
 
-# PM Capacity
 if page == "👷 PM Capacity":
     st.title("👷 Property Manager Capacity Settings")
-
     for r in regions:
         with st.expander(f"{r}"):
             st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
                 f"PMs Assigned in {r}", min_value=0,
                 value=st.session_state.regional_staffing[r]["PMs Assigned"],
-                key=f"pm_{r}"
+                key=f"pm_assigned_{r}"
+            )
+            st.session_state.regional_staffing[r]["PM Capacity"] = st.number_input(
+                f"PM Capacity (Homes per PM) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["PM Capacity"],
+                key=f"pm_capacity_{r}"
             )
 
-# Tech Capacity
 if page == "🔧 Tech Capacity":
     st.title("🔧 Technician Capacity Settings")
-
     for r in regions:
         with st.expander(f"{r}"):
             st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
                 f"Techs Assigned in {r}", min_value=0,
                 value=st.session_state.regional_staffing[r]["Techs Assigned"],
-                key=f"tech_{r}"
+                key=f"tech_assigned_{r}"
+            )
+            st.session_state.regional_staffing[r]["Tech Capacity"] = st.number_input(
+                f"Tech Capacity (Requests/Month) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["Tech Capacity"],
+                key=f"tech_capacity_{r}"
             )
 
-# Staffing Overview
 if page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
-    efficiency_pct = st.slider("Efficiency Increase (%)", 0, 50, value=15)
+    efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
     summary_rows = []
     for r in regions:
-        df = st.session_state.properties
-        df_region = df[df["Region"] == r]
+        df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
         total_units = df_region["Units"].sum()
-        avg_complexity = df_region["Complexity (1-5)"].mean() if not df_region.empty else 3
-
-        pm_capacity = 50 * (1 + efficiency_pct / 100)
-        tech_capacity = 20 * (1 + efficiency_pct / 100)
+        pm_capacity = st.session_state.regional_staffing[r]["PM Capacity"] * (1 + efficiency_pct / 100)
+        tech_capacity = st.session_state.regional_staffing[r]["Tech Capacity"] * (1 + efficiency_pct / 100)
         reqs_per_home = 2
 
         pm_needed = np.ceil(total_units / pm_capacity)
