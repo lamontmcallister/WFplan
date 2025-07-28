@@ -97,19 +97,6 @@ This is your launchpad.
     👷 Allocate Property Managers and Technicians  
     📈 Simulate efficiency improvements  
     📊 See staffing gaps before they impact operations
-
----
-
-### 🧭 Step-by-Step: How to Use This Dashboard
-
-1. **Start on this Overview tab** to understand your overall coverage needs.
-2. Go to **📍 Properties** to review, filter, or add new properties with regions, types, units, and complexity.
-3. Visit **👷 PM Capacity** to set how many Property Managers are assigned and how many homes each can manage.
-4. Visit **🔧 Tech Capacity** to set how many Technicians are assigned and how many requests each can fulfill monthly.
-5. Head to **📊 Staffing Overview** to compare staffing needs vs. actuals by region and simulate improvements.
-6. Return here and click **Run Demo Summary** to see whether your total coverage is sufficient.
-
-This process ensures that staffing plans reflect actual workload and can highlight where you're under- or over-resourced.
     """)
 
     if st.button("▶️ Run Demo Summary"):
