@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+
 import numpy as np
 import random
 
@@ -54,10 +55,21 @@ navigation = {
     "📊 Staffing Overview": ["👷 PM Capacity", "🔧 Tech Capacity"]
 }
 
-page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
+
+flat_pages = []
+for main_tab, sub_tabs in navigation.items():
+    flat_pages.append(main_tab)
+    for sub in sub_tabs:
+        flat_pages.append("   └─ " + sub)
+
+page = st.sidebar.radio("Go to", flat_pages)
+
+# Normalize page name for routing logic
+clean_page = page.replace("   └─ ", "")
+
 
 # Overview
-if page == "🏠 Overview":
+if clean_page == "🏠 Overview":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""
 **Understand and Optimize Your Property Ops Staffing**
@@ -119,7 +131,7 @@ This is your launchpad.
 
 
 # Properties with Filters
-if page == "📍 Properties":
+if clean_page == "📍 Properties":
     st.title("📍 Properties by Region")
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""
@@ -169,7 +181,7 @@ Use filters to narrow down by region or property type.
             st.success("Added!")
 
 # Staffing Overview
-if page == "📊 Staffing Overview":
+if clean_page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""
@@ -222,7 +234,7 @@ This section shows whether your current staff levels meet the need.
     st.dataframe(df_summary, use_container_width=True)
 
 # PM Capacity
-if page == "👷 PM Capacity":
+if clean_page == "👷 PM Capacity":
     st.title("👷 Property Manager Capacity Settings")
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""
@@ -257,7 +269,7 @@ Manually adjust how many PMs are assigned per region and their home capacity.
             )
 
 # Tech Capacity
-if page == "🔧 Tech Capacity":
+if clean_page == "🔧 Tech Capacity":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""
 **Understand and Optimize Your Property Ops Staffing**
