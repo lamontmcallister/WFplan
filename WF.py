@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+
 import numpy as np
 import random
 
@@ -8,7 +9,7 @@ st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 st.markdown("""
 st.markdown("""
     <style>
-        body, .css-18e3th9, .css-1d391kg {
+        body {
             background-color: #f5f5f5 !important;
             color: #000000 !important;
         }
