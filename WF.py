@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 import random
 
@@ -48,9 +47,11 @@ if "regional_staffing" not in st.session_state:
     }
 
 # Hierarchical sidebar navigation
+
 navigation = {
     "🏠 Overview": [],
-    "📍 Properties": ["📊 Staffing Overview", "👷 PM Capacity", "🔧 Tech Capacity"]
+    "📍 Properties": [],
+    "📊 Staffing Overview": ["👷 PM Capacity", "🔧 Tech Capacity"]
 }
 
 page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
