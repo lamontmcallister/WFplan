@@ -136,7 +136,7 @@ st.success("Added!")
 # Staffing Overview
 if page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
-efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
+    efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
 summary_rows = []
     for r in regions:
