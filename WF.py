@@ -139,8 +139,8 @@ if page == "📊 Staffing Overview":
 efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
 summary_rows = []
-for r in regions:
-    df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
+    for r in regions:
+            df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
 total_units = df_region["Units"].sum()
 pm_capacity = st.session_state.regional_staffing[r]["PM Capacity"] * (1 + efficiency_pct / 100)
 tech_capacity = st.session_state.regional_staffing[r]["Tech Capacity"] * (1 + efficiency_pct / 100)
@@ -173,7 +173,7 @@ with st.expander("ℹ️ How to Use This Section"):
     st.markdown("""**How to Use This Section**  
 - Input the number of PMs assigned and their average capacity per region.  
 - These inputs feed directly into the Staffing Overview and Forecast calculations.""")
-for r in regions:
+    for r in regions:
 with st.expander(f"{r}"):
     st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
 f"PMs Assigned in {r}", min_value=0,
@@ -194,7 +194,7 @@ with st.expander("ℹ️ How to Use This Section"):
 - The system assumes each property generates 2 monthly service requests.
 - This will feed into your coverage calculation in the Demo or Forecast views.""")
 st.title("🔧 Technician Capacity Settings")
-for r in regions:
+    for r in regions:
 with st.expander(f"{r}"):
     st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
 f"Techs Assigned in {r}", min_value=0,
