@@ -7,23 +7,25 @@ import random
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
 st.markdown("""
+st.markdown("""
     <style>
         body, .css-18e3th9, .css-1d391kg {
-            background-color: #1e1e1e !important;
-            color: white !important;
+            background-color: #f5f5f5 !important;
+            color: #000000 !important;
         }
         .stButton > button {
-            background-color: #ff4b2b;
+            background-color: #007bff;
             color: white;
         }
         .stButton > button:hover {
-            background-color: #ff6b4b;
+            background-color: #0056b3;
         }
         .stDataFrame, .stNumberInput input {
-            color: white !important;
-            background-color: #333 !important;
+            color: black !important;
+            background-color: #ffffff !important;
         }
     </style>
+""", unsafe_allow_html=True)
 """, unsafe_allow_html=True)
 
 regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
