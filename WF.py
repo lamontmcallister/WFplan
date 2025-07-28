@@ -58,9 +58,45 @@ page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values
 # Overview
 if page == "🏠 Overview":
     st.title("Roostock Property Ops Dashboard")
+
     st.markdown("""
-    Track property volume, allocate Property Managers (PMs) and Technicians (Techs), and forecast staffing needs across regions.
+    Welcome to your centralized dashboard for managing **property coverage, staffing, and technician load** across geo-regions.
+
+    🔍 Track properties by region  
+    👷 Allocate Property Managers and Technicians  
+    📈 Simulate efficiency improvements  
+    📊 See staffing gaps before they impact operations
     """)
+
+    if st.button("▶️ Run Demo Summary"):
+        st.subheader("📊 Demo Summary")
+
+        total_properties = st.session_state.properties["Units"].sum()
+        total_pms = sum([d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+        avg_pm_capacity = np.mean([d["PM Capacity"] for d in st.session_state.regional_staffing.values()])
+        pm_needed = int(np.ceil(total_properties / avg_pm_capacity))
+        total_pm_capacity = sum([d["PM Capacity"] * d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+
+        total_techs = sum([d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+        avg_tech_capacity = np.mean([d["Tech Capacity"] for d in st.session_state.regional_staffing.values()])
+        estimated_requests = total_properties * 2
+        tech_needed = int(np.ceil(estimated_requests / avg_tech_capacity))
+        total_tech_capacity = sum([d["Tech Capacity"] * d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+
+        st.metric("🏘️ Total Properties Managed", total_properties)
+        st.metric("🧑‍💼 PMs Needed", f"{pm_needed} needed vs {total_pms} assigned")
+        st.metric("🔧 Techs Needed", f"{tech_needed} needed vs {total_techs} assigned")
+
+        if total_pm_capacity >= total_properties:
+            st.success("✅ Property Manager coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional PMs may be needed")
+
+        if total_tech_capacity >= estimated_requests:
+            st.success("✅ Technician coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional Technicians may be needed")
+
 
 # Properties with Filters
 if page == "📍 Properties":
