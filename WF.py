@@ -169,6 +169,10 @@ if page == "📊 Staffing Overview":
 # PM Capacity
 if page == "👷 PM Capacity":
     st.title("👷 Property Manager Capacity Settings")
+with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+- Input the number of PMs assigned and their average capacity per region.  
+- These inputs feed directly into the Staffing Overview and Forecast calculations.""")
     for r in regions:
         with st.expander(f"{r}"):
             st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
