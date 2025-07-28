@@ -134,7 +134,11 @@ This is your launchpad.
 if clean_page == "📍 Properties":
     st.title("📍 Properties by Region")
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("""
+            st.markdown("""**How to Use This Section**  
+Use filters to narrow down by region or property type.  
+- View all properties currently in the system.  
+- Add new properties using the form below with region, type, units, and complexity.  
+""")
 **Understand and Optimize Your Property Ops Staffing**
 
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
@@ -184,7 +188,11 @@ Use filters to narrow down by region or property type.
 if clean_page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("""
+            st.markdown("""**How to Use This Section**  
+This section shows whether your current staff levels meet the need.  
+- Adjust the efficiency slider to simulate process improvements.  
+- View required vs. actual PMs and Techs by region.  
+""")
 **Understand and Optimize Your Property Ops Staffing**
 
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
@@ -237,7 +245,10 @@ This section shows whether your current staff levels meet the need.
 if clean_page == "👷 PM Capacity":
     st.title("👷 Property Manager Capacity Settings")
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("""
+            st.markdown("""**How to Use This Section**  
+Manually adjust how many PMs are assigned per region and their home capacity.  
+- This affects your staffing calculations in other views.  
+""")
 **Understand and Optimize Your Property Ops Staffing**
 
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
@@ -271,7 +282,11 @@ Manually adjust how many PMs are assigned per region and their home capacity.
 # Tech Capacity
 if clean_page == "🔧 Tech Capacity":
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown("""
+            st.markdown("""**How to Use This Section**  
+- Set how many service requests each Tech can fulfill and how many Techs are staffed.  
+- The system assumes each property generates 2 monthly service requests.  
+- This will feed into your coverage calculation in the Demo or Forecast views.  
+""")
 **Understand and Optimize Your Property Ops Staffing**
 
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
