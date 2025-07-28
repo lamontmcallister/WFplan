@@ -57,8 +57,8 @@ page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values
 
 # Overview
 if page == "🏠 Overview":
-with st.expander("ℹ️ How to Use This Section"):
-    st.markdown("""**How to Use This Section**  
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
 This is your launchpad.  
 - Use the 'Run Demo Summary' button to get a quick view of whether you have enough Property Managers and Technicians.
 - The metrics compare your current staffing vs. what’s required based on properties and requests.""")
