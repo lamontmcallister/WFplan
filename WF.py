@@ -1,43 +1,37 @@
-
-if page == "🏠 Overview":
-    st.title("🏠 Roostock Property Ops Dashboard")
-    st.markdown("""
-    Welcome to your centralized dashboard for managing **property coverage, staffing, and technician load** across geo-regions.
-
-    🔍 Track properties by region  
-    👷 Allocate Property Managers and Technicians  
-    📈 Simulate efficiency improvements  
-    📊 See staffing gaps before they impact operations
-    """)
-
-    if st.button("▶️ Run Demo Summary"):
-        st.subheader("📊 Demo Summary")
-
-        total_properties = st.session_state.properties["Units"].sum()
-        total_pms = sum([d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
-        total_pm_capacity = sum([d["PM Capacity"] * d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
-
-        total_techs = sum([d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
-        total_tech_capacity = sum([d["Tech Capacity"] * d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
-        estimated_requests = total_properties * 2
-
-        st.metric("🏘️ Total Properties Managed", total_properties)
-        st.metric("🧑‍💼 PM Capacity vs Need", f"{total_pm_capacity} capacity / {total_properties} units")
-        st.metric("🔧 Tech Capacity vs Need", f"{total_tech_capacity} capacity / {estimated_requests} est. requests")
-
-        if total_pm_capacity >= total_properties:
-            st.success("✅ Property Manager coverage is sufficient")
-        else:
-            st.warning("⚠️ Additional PMs may be needed")
-
-        if total_tech_capacity >= estimated_requests:
-            st.success("✅ Technician coverage is sufficient")
-        else:
-            st.warning("⚠️ Additional Technicians may be needed")
-
-
-# --- Rest of Dashboard Logic Below ---
 import streamlit as st
+
+st.markdown("""
+    <style>
+        body, .css-18e3th9, .css-1d391kg {
+            background-color: #2b2b2b !important;
+            color: #f5f5f5 !important;
+        }
+        .stButton > button {
+            background-color: #FF6F61;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            font-size: 1rem;
+            border-radius: 6px;
+        }
+        .stButton > button:hover {
+            background-color: #ff8f81;
+            transition: 0.3s;
+        }
+        .stTextInput > div > input,
+        .stNumberInput input {
+            background-color: #444 !important;
+            color: white !important;
+        }
+        .stDataFrame, .stDataTable, .stMarkdown {
+            color: white !important;
+        }
+        .st-expanderContent {
+            background-color: #333 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 import pandas as pd
 
 import numpy as np
@@ -93,6 +87,47 @@ navigation = {
 }
 
 page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
+
+if page == "🏠 Overview":
+    st.title("🏠 Roostock Property Ops Dashboard")
+    st.markdown("""
+    Welcome to your centralized dashboard for managing **property coverage, staffing, and technician load** across geo-regions.
+
+    🔍 Track properties by region  
+    👷 Allocate Property Managers and Technicians  
+    📈 Simulate efficiency improvements  
+    📊 See staffing gaps before they impact operations
+    """)
+
+    if st.button("▶️ Run Demo Summary"):
+        st.subheader("📊 Demo Summary")
+
+        total_properties = st.session_state.properties["Units"].sum() if not st.session_state.properties.empty else 0
+
+        if "regional_staffing" in st.session_state:
+            total_pms = sum([d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+            total_pm_capacity = sum([d["PM Capacity"] * d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+            total_techs = sum([d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+            total_tech_capacity = sum([d["Tech Capacity"] * d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+        else:
+            total_pms = total_pm_capacity = total_techs = total_tech_capacity = 0
+
+        estimated_requests = total_properties * 2
+
+        st.metric("🏘️ Total Properties Managed", total_properties)
+        st.metric("🧑‍💼 PM Capacity vs Need", f"{total_pm_capacity} capacity / {total_properties} units")
+        st.metric("🔧 Tech Capacity vs Need", f"{total_tech_capacity} capacity / {estimated_requests} est. requests")
+
+        if total_pm_capacity >= total_properties:
+            st.success("✅ Property Manager coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional PMs may be needed")
+
+        if total_tech_capacity >= estimated_requests:
+            st.success("✅ Technician coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional Technicians may be needed")
+
 
 # Overview
 if page == "🏠 Overview":
