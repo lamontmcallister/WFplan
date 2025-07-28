@@ -30,7 +30,7 @@ regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
 types = ["Single-Family", "Multi-Unit", "Luxury"]
 
 if "properties" not in st.session_state:
-st.session_state.properties = pd.DataFrame([{
+    st.session_state.properties = pd.DataFrame([{
 "Region": random.choice(regions),
 "Property Type": random.choice(types),
 "Units": random.randint(1, 12),
@@ -38,7 +38,7 @@ st.session_state.properties = pd.DataFrame([{
 } for _ in range(100)])
 
 if "regional_staffing" not in st.session_state:
-st.session_state.regional_staffing = {
+    st.session_state.regional_staffing = {
 r: {
 "PMs Assigned": 2,
 "PM Capacity": random.choice([40, 45, 50, 60]),
@@ -58,7 +58,7 @@ page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values
 # Overview
 if page == "🏠 Overview":
 with st.expander("ℹ️ How to Use This Section"):
-st.markdown("""**How to Use This Section**  
+    st.markdown("""**How to Use This Section**  
 This is your launchpad.  
 - Use the 'Run Demo Summary' button to get a quick view of whether you have enough Property Managers and Technicians.
 - The metrics compare your current staffing vs. what’s required based on properties and requests.""")
@@ -74,7 +74,7 @@ Welcome to your centralized dashboard for managing **property coverage, staffing
 """)
 
 if st.button("▶️ Run Demo Summary"):
-st.subheader("📊 Demo Summary")
+    st.subheader("📊 Demo Summary")
 
 total_properties = st.session_state.properties["Units"].sum()
 total_pms = sum([d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
@@ -93,54 +93,54 @@ st.metric("🧑‍💼 PMs Needed", f"{pm_needed} needed vs {total_pms} assigned
 st.metric("🔧 Techs Needed", f"{tech_needed} needed vs {total_techs} assigned")
 
 if total_pm_capacity >= total_properties:
-st.success("✅ Property Manager coverage is sufficient")
+    st.success("✅ Property Manager coverage is sufficient")
 else:
-st.warning("⚠️ Additional PMs may be needed")
+    st.warning("⚠️ Additional PMs may be needed")
 
 if total_tech_capacity >= estimated_requests:
-st.success("✅ Technician coverage is sufficient")
+    st.success("✅ Technician coverage is sufficient")
 else:
-st.warning("⚠️ Additional Technicians may be needed")
+    st.warning("⚠️ Additional Technicians may be needed")
 
 
 # Properties with Filters
 if page == "📍 Properties":
-st.title("📍 Properties by Region")
+    st.title("📍 Properties by Region")
 
 region_filter = st.selectbox("Filter by Region", ["All"] + regions)
 type_filter = st.selectbox("Filter by Property Type", ["All"] + types)
 
 df_filtered = st.session_state.properties.copy()
 if region_filter != "All":
-df_filtered = df_filtered[df_filtered["Region"] == region_filter]
+    df_filtered = df_filtered[df_filtered["Region"] == region_filter]
 if type_filter != "All":
-df_filtered = df_filtered[df_filtered["Property Type"] == type_filter]
+    df_filtered = df_filtered[df_filtered["Property Type"] == type_filter]
 
 st.dataframe(df_filtered)
 
 with st.expander("➕ Add Property"):
-col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 with col1:
-region = st.selectbox("Region", regions, key="add_region")
+    region = st.selectbox("Region", regions, key="add_region")
 with col2:
-ptype = st.selectbox("Type", types, key="add_type")
+    ptype = st.selectbox("Type", types, key="add_type")
 with col3:
-units = st.number_input("Units", min_value=1, step=1, key="add_units")
+    units = st.number_input("Units", min_value=1, step=1, key="add_units")
 with col4:
-complexity = st.slider("Complexity", 1, 5, 3, key="add_complexity")
+    complexity = st.slider("Complexity", 1, 5, 3, key="add_complexity")
 if st.button("Add Property"):
-new_row = pd.DataFrame([[region, ptype, units, complexity]], columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
+    new_row = pd.DataFrame([[region, ptype, units, complexity]], columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
 st.session_state.properties = pd.concat([st.session_state.properties, new_row], ignore_index=True)
 st.success("Added!")
 
 # Staffing Overview
 if page == "📊 Staffing Overview":
-st.title("📊 Regional Staffing Overview")
+    st.title("📊 Regional Staffing Overview")
 efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
 summary_rows = []
 for r in regions:
-df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
+    df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
 total_units = df_region["Units"].sum()
 pm_capacity = st.session_state.regional_staffing[r]["PM Capacity"] * (1 + efficiency_pct / 100)
 tech_capacity = st.session_state.regional_staffing[r]["Tech Capacity"] * (1 + efficiency_pct / 100)
@@ -168,14 +168,14 @@ st.dataframe(df_summary, use_container_width=True)
 
 # PM Capacity
 if page == "👷 PM Capacity":
-st.title("👷 Property Manager Capacity Settings")
+    st.title("👷 Property Manager Capacity Settings")
 with st.expander("ℹ️ How to Use This Section"):
-st.markdown("""**How to Use This Section**  
+    st.markdown("""**How to Use This Section**  
 - Input the number of PMs assigned and their average capacity per region.  
 - These inputs feed directly into the Staffing Overview and Forecast calculations.""")
 for r in regions:
 with st.expander(f"{r}"):
-st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
+    st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
 f"PMs Assigned in {r}", min_value=0,
 value=st.session_state.regional_staffing[r]["PMs Assigned"],
 key=f"pm_assigned_{r}"
@@ -189,14 +189,14 @@ key=f"pm_capacity_{r}"
 # Tech Capacity
 if page == "🔧 Tech Capacity":
 with st.expander("ℹ️ How to Use This Section"):
-st.markdown("""**How to Use This Section**  
+    st.markdown("""**How to Use This Section**  
 - Set how many service requests each Tech can fulfill and how many Techs are staffed.
 - The system assumes each property generates 2 monthly service requests.
 - This will feed into your coverage calculation in the Demo or Forecast views.""")
 st.title("🔧 Technician Capacity Settings")
 for r in regions:
 with st.expander(f"{r}"):
-st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
+    st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
 f"Techs Assigned in {r}", min_value=0,
 value=st.session_state.regional_staffing[r]["Techs Assigned"],
 key=f"tech_assigned_{r}"
