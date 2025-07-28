@@ -77,11 +77,11 @@ if clean_page == "🏠 Overview":
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
 
 **Step-by-Step:**
-1. **Properties Tab** – Review or add properties with units and complexity.
-2. **PM Capacity Tab** – Adjust how many homes a PM can cover and how many are assigned per region.
-3. **Tech Capacity Tab** – Adjust how many service requests a Tech can handle and current staffing levels.
-4. **Staffing Overview** – See whether you’re short or overstaffed by region.
-5. **Run Demo Summary** – Get a high-level view of PM and Tech sufficiency across all regions.
+1. **Properties Tab** - Review or add properties with units and complexity.
+2. **PM Capacity Tab** - Adjust how many homes a PM can cover and how many are assigned per region.
+3. **Tech Capacity Tab** - Adjust how many service requests a Tech can handle and current staffing levels.
+4. **Staffing Overview** - See whether you’re short or overstaffed by region.
+5. **Run Demo Summary** - Get a high-level view of PM and Tech sufficiency across all regions.
 
 _Use this tool to scenario plan, simulate efficiencies, or justify staffing needs._
 """)
@@ -144,11 +144,11 @@ Use filters to narrow down by region or property type.
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
 
 **Step-by-Step:**
-1. **Properties Tab** – Review or add properties with units and complexity.
-2. **PM Capacity Tab** – Adjust how many homes a PM can cover and how many are assigned per region.
-3. **Tech Capacity Tab** – Adjust how many service requests a Tech can handle and current staffing levels.
-4. **Staffing Overview** – See whether you’re short or overstaffed by region.
-5. **Run Demo Summary** – Get a high-level view of PM and Tech sufficiency across all regions.
+1. **Properties Tab** - Review or add properties with units and complexity.
+2. **PM Capacity Tab** - Adjust how many homes a PM can cover and how many are assigned per region.
+3. **Tech Capacity Tab** - Adjust how many service requests a Tech can handle and current staffing levels.
+4. **Staffing Overview** - See whether you’re short or overstaffed by region.
+5. **Run Demo Summary** - Get a high-level view of PM and Tech sufficiency across all regions.
 
 _Use this tool to scenario plan, simulate efficiencies, or justify staffing needs._
 """)
@@ -198,11 +198,11 @@ This section shows whether your current staff levels meet the need.
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
 
 **Step-by-Step:**
-1. **Properties Tab** – Review or add properties with units and complexity.
-2. **PM Capacity Tab** – Adjust how many homes a PM can cover and how many are assigned per region.
-3. **Tech Capacity Tab** – Adjust how many service requests a Tech can handle and current staffing levels.
-4. **Staffing Overview** – See whether you’re short or overstaffed by region.
-5. **Run Demo Summary** – Get a high-level view of PM and Tech sufficiency across all regions.
+1. **Properties Tab** - Review or add properties with units and complexity.
+2. **PM Capacity Tab** - Adjust how many homes a PM can cover and how many are assigned per region.
+3. **Tech Capacity Tab** - Adjust how many service requests a Tech can handle and current staffing levels.
+4. **Staffing Overview** - See whether you’re short or overstaffed by region.
+5. **Run Demo Summary** - Get a high-level view of PM and Tech sufficiency across all regions.
 
 _Use this tool to scenario plan, simulate efficiencies, or justify staffing needs._
 """)
@@ -254,11 +254,11 @@ Manually adjust how many PMs are assigned per region and their home capacity.
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
 
 **Step-by-Step:**
-1. **Properties Tab** – Review or add properties with units and complexity.
-2. **PM Capacity Tab** – Adjust how many homes a PM can cover and how many are assigned per region.
-3. **Tech Capacity Tab** – Adjust how many service requests a Tech can handle and current staffing levels.
-4. **Staffing Overview** – See whether you’re short or overstaffed by region.
-5. **Run Demo Summary** – Get a high-level view of PM and Tech sufficiency across all regions.
+1. **Properties Tab** - Review or add properties with units and complexity.
+2. **PM Capacity Tab** - Adjust how many homes a PM can cover and how many are assigned per region.
+3. **Tech Capacity Tab** - Adjust how many service requests a Tech can handle and current staffing levels.
+4. **Staffing Overview** - See whether you’re short or overstaffed by region.
+5. **Run Demo Summary** - Get a high-level view of PM and Tech sufficiency across all regions.
 
 _Use this tool to scenario plan, simulate efficiencies, or justify staffing needs._
 """)
@@ -292,11 +292,11 @@ if clean_page == "🔧 Tech Capacity":
 This dashboard helps you determine whether you have enough Property Managers (PMs) and Technicians (Techs) to handle your property load.
 
 **Step-by-Step:**
-1. **Properties Tab** – Review or add properties with units and complexity.
-2. **PM Capacity Tab** – Adjust how many homes a PM can cover and how many are assigned per region.
-3. **Tech Capacity Tab** – Adjust how many service requests a Tech can handle and current staffing levels.
-4. **Staffing Overview** – See whether you’re short or overstaffed by region.
-5. **Run Demo Summary** – Get a high-level view of PM and Tech sufficiency across all regions.
+1. **Properties Tab** - Review or add properties with units and complexity.
+2. **PM Capacity Tab** - Adjust how many homes a PM can cover and how many are assigned per region.
+3. **Tech Capacity Tab** - Adjust how many service requests a Tech can handle and current staffing levels.
+4. **Staffing Overview** - See whether you’re short or overstaffed by region.
+5. **Run Demo Summary** - Get a high-level view of PM and Tech sufficiency across all regions.
 
 _Use this tool to scenario plan, simulate efficiencies, or justify staffing needs._
 """)
