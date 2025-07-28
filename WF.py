@@ -106,6 +106,12 @@ This is your launchpad.
 # Properties with Filters
 if page == "📍 Properties":
     st.title("📍 Properties by Region")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+Use filters to narrow down by region or property type.  
+• View all properties currently in the system.  
+• Add new properties using the form below with region, type, units, and complexity.  
+""")
 
     region_filter = st.selectbox("Filter by Region", ["All"] + regions)
     type_filter = st.selectbox("Filter by Property Type", ["All"] + types)
@@ -136,6 +142,12 @@ if page == "📍 Properties":
 # Staffing Overview
 if page == "📊 Staffing Overview":
     st.title("📊 Regional Staffing Overview")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+This section shows whether your current staff levels meet the need.  
+• Adjust the efficiency slider to simulate process improvements.  
+• View required vs. actual PMs and Techs by region.  
+""")
     efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
     summary_rows = []
@@ -169,6 +181,11 @@ if page == "📊 Staffing Overview":
 # PM Capacity
 if page == "👷 PM Capacity":
     st.title("👷 Property Manager Capacity Settings")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+Manually adjust how many PMs are assigned per region and their home capacity.  
+• This affects your staffing calculations in other views.  
+""")
     for r in regions:
         with st.expander(f"{r}"):
             st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
