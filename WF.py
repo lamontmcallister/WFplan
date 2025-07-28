@@ -1,30 +1,29 @@
 import streamlit as st
 import pandas as pd
+
 import numpy as np
 import random
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
 st.markdown("""
-st.markdown("""
     <style>
-        body {
-            background-color: #f5f5f5 !important;
-            color: #000000 !important;
+        body, .css-18e3th9, .css-1d391kg {
+            background-color: #1e1e1e !important;
+            color: white !important;
         }
         .stButton > button {
-            background-color: #007bff;
+            background-color: #ff4b2b;
             color: white;
         }
         .stButton > button:hover {
-            background-color: #0056b3;
+            background-color: #ff6b4b;
         }
         .stDataFrame, .stNumberInput input {
-            color: black !important;
-            background-color: #ffffff !important;
+            color: white !important;
+            background-color: #333 !important;
         }
     </style>
-""", unsafe_allow_html=True)
 """, unsafe_allow_html=True)
 
 regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
@@ -110,8 +109,8 @@ if page == "📍 Properties":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""**How to Use This Section**  
 Use filters to narrow down by region or property type.  
-• View all properties currently in the system.  
-• Add new properties using the form below with region, type, units, and complexity.  
+- View all properties currently in the system.  
+- Add new properties using the form below with region, type, units, and complexity.  
 """)
 
     region_filter = st.selectbox("Filter by Region", ["All"] + regions)
@@ -146,8 +145,8 @@ if page == "📊 Staffing Overview":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""**How to Use This Section**  
 This section shows whether your current staff levels meet the need.  
-• Adjust the efficiency slider to simulate process improvements.  
-• View required vs. actual PMs and Techs by region.  
+- Adjust the efficiency slider to simulate process improvements.  
+- View required vs. actual PMs and Techs by region.  
 """)
     efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
 
@@ -185,7 +184,7 @@ if page == "👷 PM Capacity":
     with st.expander("ℹ️ How to Use This Section"):
         st.markdown("""**How to Use This Section**  
 Manually adjust how many PMs are assigned per region and their home capacity.  
-• This affects your staffing calculations in other views.  
+- This affects your staffing calculations in other views.  
 """)
     for r in regions:
         with st.expander(f"{r}"):
