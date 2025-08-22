@@ -1,10 +1,11 @@
-
 import streamlit as st
 import pandas as pd
+
 import numpy as np
+import random
 
+st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
-# ----------------- Global Styling -----------------
 st.markdown("""
     <style>
         body, .css-18e3th9, .css-1d391kg {
@@ -14,483 +15,207 @@ st.markdown("""
         .stButton > button {
             background-color: #ff4b2b;
             color: white;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            font-size: 1rem;
-            border-radius: 6px;
         }
         .stButton > button:hover {
             background-color: #ff6b4b;
-            transition: 0.3s;
         }
-        .stTextInput > div > input,
-        .stNumberInput input {
+        .stDataFrame, .stNumberInput input {
+            color: white !important;
             background-color: #333 !important;
-            color: white !important;
-        }
-        .stDataFrame, .stDataTable, .stMarkdown {
-            color: white !important;
-        }
-        .st-expanderContent {
-            background-color: #222 !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
+regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
+types = ["Single-Family", "Multi-Unit", "Luxury"]
 
-# ----------------- Load or initialize data -----------------
-if "headcount_data" not in st.session_state:
-    headcount_data = {
-        "Allocation": [
-            "Business", "Business", "Business", "Business", "Business", "Business", "Business", "Business", "Business",
-            "Business", "Business", "Business", "Business", "Business", "Core R&D", "Core R&D", "Core R&D", "Core R&D",
-            "Core R&D", "Core R&D", "Core R&D", "Machine Learning"
-        ],
-        "Sub-Dept": [
-            "CS", "Customer Success & Solutions", "Marketing", "ProServ", "Sales", "Accounting", "Biz Ops & Prog Mgmt",
-            "Finance", "Legal", "Ops & Admin", "Employee Experience", "People Operations", "Recruiting", "Workplace",
-            "Allos", "COGS ops", "Eng", "G&A Biz sys", "Prod", "R&D biz sys", "Sales Biz sys", "Machine Learning"
-        ],
-        "Employees in seat": [115, 46, 82, 9, 175, 29, 6, 13, 7, 2, 16, 5, 27, 8, 12, 20, 204, 7, 89, 17, 7, 32],
-        "Future Starts": [6, 13, 8, 3, 5, 3, 0, 7, 0, 0, 0, 0, 4, 1, 1, 1, 19, 1, 4, 0, 0, 1],
-        "FY26 Planned + Open": [7, 17, 2, 0, 26, 1, 0, 0, 2, 2, 0, 0, 1, 0, 0, 6, 57, 3, 18, 1, 4, 0],
-        "FY26 Planned - not yet opened": [4, 16, 40, 10, 18, 3, 1, 2, 0, 1, 1, 0, 2, 1, 0, 2, 15, 0, 6, 6, 1, 0]
+if "properties" not in st.session_state:
+    st.session_state.properties = pd.DataFrame([{
+        "Region": random.choice(regions),
+        "Property Type": random.choice(types),
+        "Units": random.randint(1, 12),
+        "Complexity (1-5)": random.randint(1, 5)
+    } for _ in range(100)])
+
+if "regional_staffing" not in st.session_state:
+    st.session_state.regional_staffing = {
+        r: {
+            "PMs Assigned": 2,
+            "PM Capacity": random.choice([40, 45, 50, 60]),
+            "Techs Assigned": 3,
+            "Tech Capacity": random.choice([15, 20, 25])
+        } for r in regions
     }
-    df_headcount = pd.DataFrame(headcount_data)
-    df_headcount["Total Headcount"] = df_headcount[
-        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-    ].sum(axis=1)
-    st.session_state.headcount_data = df_headcount
-    st.session_state.original_headcount = df_headcount.copy()
 
-df_headcount = st.session_state.headcount_data
-df_headcount["Total Headcount"] = df_headcount[
-    ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-].sum(axis=1)
-
-# ------------------ Augment Data with Function + Region ------------------
-functions = {
-    "CS": "Customer Success", "Customer Success & Solutions": "Customer Success", "Marketing": "Marketing",
-    "ProServ": "Professional Services", "Sales": "Sales", "Accounting": "G&A", "Biz Ops & Prog Mgmt": "G&A",
-    "Finance": "G&A", "Legal": "G&A", "Ops & Admin": "G&A", "Employee Experience": "G&A",
-    "People Operations": "HR", "Recruiting": "HR", "Workplace": "G&A", "Allos": "R&D",
-    "COGS ops": "R&D", "Eng": "R&D", "G&A Biz sys": "G&A", "Prod": "Product",
-    "R&D biz sys": "R&D", "Sales Biz sys": "Sales", "Machine Learning": "R&D"
+# Hierarchical sidebar navigation
+navigation = {
+    "🏠 Overview": [],
+    "📍 Properties": ["📊 Staffing Overview", "👷 PM Capacity", "🔧 Tech Capacity"]
 }
-regions = ["US", "EMEA", "APAC"]
-df_headcount["Function"] = df_headcount["Sub-Dept"].map(functions).fillna("Other")
-df_headcount["Region"] = np.random.choice(regions, size=len(df_headcount))
 
-df_allocation_summary = df_headcount.groupby("Allocation").sum(numeric_only=True).reset_index()
-default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
-df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-    lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-    axis=1
-)
-df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
+page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
 
-# ----------------- Sidebar Navigation -----------------
-st.sidebar.title("Navigation")
+# Overview
+if page == "🏠 Overview":
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+This is your launchpad.  
+- Use the 'Run Demo Summary' button to get a quick view of whether you have enough Property Managers and Technicians.
+- The metrics compare your current staffing vs. what’s required based on properties and requests.""")
+    st.title("Roostock Property Ops Dashboard")
+
+    st.markdown("""
+    Welcome to your centralized dashboard for managing **property coverage, staffing, and technician load** across geo-regions.
+
+    🔍 Track properties by region  
+    👷 Allocate Property Managers and Technicians  
+    📈 Simulate efficiency improvements  
+    📊 See staffing gaps before they impact operations
+    """)
+
+    if st.button("▶️ Run Demo Summary"):
+        st.subheader("📊 Demo Summary")
+
+        total_properties = st.session_state.properties["Units"].sum()
+        total_pms = sum([d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+        avg_pm_capacity = np.mean([d["PM Capacity"] for d in st.session_state.regional_staffing.values()])
+        pm_needed = int(np.ceil(total_properties / avg_pm_capacity))
+        total_pm_capacity = sum([d["PM Capacity"] * d["PMs Assigned"] for d in st.session_state.regional_staffing.values()])
+
+        total_techs = sum([d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+        avg_tech_capacity = np.mean([d["Tech Capacity"] for d in st.session_state.regional_staffing.values()])
+        estimated_requests = total_properties * 2
+        tech_needed = int(np.ceil(estimated_requests / avg_tech_capacity))
+        total_tech_capacity = sum([d["Tech Capacity"] * d["Techs Assigned"] for d in st.session_state.regional_staffing.values()])
+
+        st.metric("🏘️ Total Properties Managed", total_properties)
+        st.metric("🧑‍💼 PMs Needed", f"{pm_needed} needed vs {total_pms} assigned")
+        st.metric("🔧 Techs Needed", f"{tech_needed} needed vs {total_techs} assigned")
+
+        if total_pm_capacity >= total_properties:
+            st.success("✅ Property Manager coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional PMs may be needed")
+
+        if total_tech_capacity >= estimated_requests:
+            st.success("✅ Technician coverage is sufficient")
+        else:
+            st.warning("⚠️ Additional Technicians may be needed")
 
 
-# ----------------- Demo Mode Toggle -----------------
-st.sidebar.markdown("### 🧪 Demo Mode")
-demo_mode = st.sidebar.checkbox("Enable Demo Mode", key="demo_mode_toggle")
+# Properties with Filters
+if page == "📍 Properties":
+    st.title("📍 Properties by Region")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+Use filters to narrow down by region or property type.  
+- View all properties currently in the system.  
+- Add new properties using the form below with region, type, units, and complexity.  
+""")
 
-if demo_mode:
-    st.warning("🚧 You are viewing a sample dashboard in Demo Mode. All data is randomly generated.")
-    import random
+    region_filter = st.selectbox("Filter by Region", ["All"] + regions)
+    type_filter = st.selectbox("Filter by Property Type", ["All"] + types)
 
-    # Generate demo headcount
-    demo_allocs = ["Business", "Core R&D", "G&A"]
-    demo_subdepts = ["Sales", "Eng", "Finance", "Marketing", "People Ops"]
-    demo_data = []
-    for _ in range(15):
-        alloc = random.choice(demo_allocs)
-        sub = random.choice(demo_subdepts)
-        demo_data.append({
-            "Allocation": alloc,
-            "Sub-Dept": sub,
-            "Employees in seat": random.randint(10, 100),
-            "Future Starts": random.randint(0, 10),
-            "FY26 Planned + Open": random.randint(0, 15),
-            "FY26 Planned - not yet opened": random.randint(0, 10)
+    df_filtered = st.session_state.properties.copy()
+    if region_filter != "All":
+        df_filtered = df_filtered[df_filtered["Region"] == region_filter]
+    if type_filter != "All":
+        df_filtered = df_filtered[df_filtered["Property Type"] == type_filter]
+
+    st.dataframe(df_filtered)
+
+    with st.expander("➕ Add Property"):
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            region = st.selectbox("Region", regions, key="add_region")
+        with col2:
+            ptype = st.selectbox("Type", types, key="add_type")
+        with col3:
+            units = st.number_input("Units", min_value=1, step=1, key="add_units")
+        with col4:
+            complexity = st.slider("Complexity", 1, 5, 3, key="add_complexity")
+        if st.button("Add Property"):
+            new_row = pd.DataFrame([[region, ptype, units, complexity]], columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
+            st.session_state.properties = pd.concat([st.session_state.properties, new_row], ignore_index=True)
+            st.success("Added!")
+
+# Staffing Overview
+if page == "📊 Staffing Overview":
+    st.title("📊 Regional Staffing Overview")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+This section shows whether your current staff levels meet the need.  
+- Adjust the efficiency slider to simulate process improvements.  
+- View required vs. actual PMs and Techs by region.  
+""")
+    efficiency_pct = st.number_input("Efficiency Increase (%)", min_value=0, max_value=50, value=15, step=1)
+
+    summary_rows = []
+    for r in regions:
+        df_region = st.session_state.properties[st.session_state.properties["Region"] == r]
+        total_units = df_region["Units"].sum()
+        pm_capacity = st.session_state.regional_staffing[r]["PM Capacity"] * (1 + efficiency_pct / 100)
+        tech_capacity = st.session_state.regional_staffing[r]["Tech Capacity"] * (1 + efficiency_pct / 100)
+        reqs_per_home = 2
+
+        pm_needed = np.ceil(total_units / pm_capacity)
+        tech_needed = np.ceil((total_units * reqs_per_home) / tech_capacity)
+
+        pm_assigned = st.session_state.regional_staffing[r]["PMs Assigned"]
+        tech_assigned = st.session_state.regional_staffing[r]["Techs Assigned"]
+
+        summary_rows.append({
+            "Region": r,
+            "Homes": total_units,
+            "PMs Assigned": pm_assigned,
+            "PMs Needed": int(pm_needed),
+            "PM Status": "✅" if pm_assigned >= pm_needed else f"❌ +{int(pm_needed - pm_assigned)}",
+            "Techs Assigned": tech_assigned,
+            "Techs Needed": int(tech_needed),
+            "Tech Status": "✅" if tech_assigned >= tech_needed else f"❌ +{int(tech_needed - tech_assigned)}"
         })
-    demo_df = pd.DataFrame(demo_data)
-    demo_df["Total Headcount"] = demo_df[
-        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-    ].sum(axis=1)
-    st.session_state.headcount_data = demo_df
-    df_headcount = demo_df
 
-    # Set demo roles_by_level_subdept_quarter
-    levels = list(range(1, 9))
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    st.session_state.roles_by_level_subdept_quarter = {
-        (row["Allocation"], row["Sub-Dept"], q): {lvl: random.randint(0, 5) for lvl in levels}
-        for _, row in demo_df.iterrows() for q in quarters
-    }
+    df_summary = pd.DataFrame(summary_rows)
+    st.dataframe(df_summary, use_container_width=True)
 
-    # Set demo speed_settings
-    level_bands = {
-        "L1–4": list(range(1, 5)),
-        "L5–7": list(range(5, 8)),
-        "L8–10": list(range(8, 11))
-    }
-    st.session_state.speed_settings = {
-        sub: {
-            band: random.choice([25, 35, 45]) for band in level_bands
-        }
-        for sub in demo_df["Sub-Dept"].unique()
-    }
-
-    # Assign demo recruiter headcount
-    all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
-    unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
-    st.session_state.recruiters_assigned_subdept = {
-        f"{a} – {s}": random.randint(1, 5) for (a, s) in unique_sub_depts
-    }
-
-
-page = st.sidebar.radio("Go to", [
-    "Welcome to Workforce Planning",
-    "Headcount Adjustments",
-    "Recruiter Capacity Model",
-    "   └ Hiring Plan by Level",
-    "   └ Hiring Speed Settings",
-    "Finance Overview",
-    "Success Metrics",
-    "Forecasting"
-])
-
-
-
-
-
-# ----------------- Page: Hiring Plan by Level -----------------
-if page == "   └ Hiring Plan by Level":
-    st.title("📌 Hiring Plan by Level, Sub-Dept & Quarter")
-    st.markdown("Define planned hires per level by department and quarter.")
-
-    levels = list(range(1, 9))
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    subdept_df = df_headcount[["Allocation", "Sub-Dept"]].drop_duplicates().reset_index(drop=True)
-
-    if "roles_by_level_subdept_quarter" not in st.session_state:
-        st.session_state.roles_by_level_subdept_quarter = {
-            (row["Allocation"], row["Sub-Dept"], q): {lvl: 0 for lvl in levels}
-            for _, row in subdept_df.iterrows() for q in quarters
-        }
-
-    selected_alloc = st.selectbox("Select Allocation", subdept_df["Allocation"].unique())
-    sub_options = subdept_df[subdept_df["Allocation"] == selected_alloc]["Sub-Dept"].unique()
-    selected_sub = st.selectbox("Select Sub-Department", sub_options)
-    selected_qtr = st.selectbox("Select Quarter", quarters)
-
-    st.subheader(f"{selected_alloc} – {selected_sub} – {selected_qtr}")
-    cols = st.columns(len(levels))
-    for i, lvl in enumerate(levels):
-        with cols[i]:
-            key = f"{selected_alloc}_{selected_sub}_{selected_qtr}_L{lvl}"
-            st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl] = st.number_input(
-                f"L{lvl}", min_value=0,
-                value=st.session_state.roles_by_level_subdept_quarter[(selected_alloc, selected_sub, selected_qtr)][lvl],
-                key=key
+# PM Capacity
+if page == "👷 PM Capacity":
+    st.title("👷 Property Manager Capacity Settings")
+    with st.expander("ℹ️ How to Use This Section"):
+        st.markdown("""**How to Use This Section**  
+Manually adjust how many PMs are assigned per region and their home capacity.  
+- This affects your staffing calculations in other views.  
+""")
+    for r in regions:
+        with st.expander(f"{r}"):
+            st.session_state.regional_staffing[r]["PMs Assigned"] = st.number_input(
+                f"PMs Assigned in {r}", min_value=0,
+                value=st.session_state.regional_staffing[r]["PMs Assigned"],
+                key=f"pm_assigned_{r}"
+            )
+            st.session_state.regional_staffing[r]["PM Capacity"] = st.number_input(
+                f"PM Capacity (Homes per PM) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["PM Capacity"],
+                key=f"pm_capacity_{r}"
             )
 
-    if st.checkbox("Show full hiring plan table"):
-        full_table_data = []
-        for (alloc, sub, qtr), level_counts in st.session_state.roles_by_level_subdept_quarter.items():
-            full_table_data.append({
-                "Allocation": alloc,
-                "Sub-Dept": sub,
-                "Quarter": qtr,
-                **level_counts
-            })
-        df_roles_by_subdept_level = pd.DataFrame(full_table_data)
-        st.dataframe(df_roles_by_subdept_level)
-# ----------------- Page: Hiring Speed Settings -----------------
-if page == "   └ Hiring Speed Settings":
-    st.title("Hiring Speed Settings")
-    st.markdown("Set expected time-to-hire per level band for each sub-department. This impacts velocity forecasting.")
-
+# Tech Capacity
+if page == "🔧 Tech Capacity":
     with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Set the expected time-to-hire in days for different role levels within each sub-department. These settings affect the forecast model.")
-    
-    level_bands = {
-        "L1–4": list(range(1, 5)),
-        "L5–7": list(range(5, 8)),
-        "L8–10": list(range(8, 11))
-    }
-    sub_depts = df_headcount["Sub-Dept"].unique().tolist()
-
-    if "speed_settings" not in st.session_state:
-        st.session_state.speed_settings = {
-            dept: {band: 30 for band in level_bands} for dept in sub_depts
-        }
-
-    uploaded_file = st.file_uploader("Optional: Upload historical time-to-hire CSV", type=["csv"])
-    if uploaded_file is not None:
-        try:
-            hist_df = pd.read_csv(uploaded_file)
-            for dept in sub_depts:
-                dept_data = hist_df[hist_df["Sub-Dept"] == dept]
-                for band_name, band_levels in level_bands.items():
-                    band_data = dept_data[dept_data["Level"].isin(band_levels)]
-                    if not band_data.empty:
-                        avg_time = round(band_data["Time to Hire"].mean())
-                        st.session_state.speed_settings[dept][band_name] = avg_time
-            st.success("Historical time-to-hire data applied.")
-        except Exception as e:
-            st.error(f"Failed to process CSV: {e}")
-
-    selected_dept = st.selectbox("Select a Department", sub_depts)
-    st.subheader(selected_dept)
-
-    cols = st.columns(len(level_bands))
-    for i, (band, _) in enumerate(level_bands.items()):
-        with cols[i]:
-            key = f"{selected_dept}_{band}"
-            st.session_state.speed_settings[selected_dept][band] = st.number_input(
-                f"{band} (days)", min_value=1, max_value=180,
-                value=st.session_state.speed_settings[selected_dept][band],
-                step=1, key=key
+        st.markdown("""**How to Use This Section**  
+- Set how many service requests each Tech can fulfill and how many Techs are staffed.
+- The system assumes each property generates 2 monthly service requests.
+- This will feed into your coverage calculation in the Demo or Forecast views.""")
+    st.title("🔧 Technician Capacity Settings")
+    for r in regions:
+        with st.expander(f"{r}"):
+            st.session_state.regional_staffing[r]["Techs Assigned"] = st.number_input(
+                f"Techs Assigned in {r}", min_value=0,
+                value=st.session_state.regional_staffing[r]["Techs Assigned"],
+                key=f"tech_assigned_{r}"
             )
-
-    st.success("Time-to-hire by sub-department and level band saved to state.")
-
-
-
-
-
-
-
-
-
-
-
-# ----------------- Page: Recruiter Capacity Model -----------------
-if page == "Recruiter Capacity Model":
-    st.title("Recruiter Capacity Model")
-    st.markdown("Assign recruiter headcount by department. Compare assigned vs. needed recruiters across quarters.")
-
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Use this view to assign recruiter headcount by sub-department and compare against calculated needs by quarter. Filter by allocation to focus in.")
-    
-    selected_filter_alloc = st.selectbox("Filter by Allocation", sorted(set(df_headcount["Allocation"].unique())))
-    quarters = ["Q1", "Q2", "Q3", "Q4"]
-    level_productivity = {1: 15, 2: 12, 3: 10, 4: 8, 5: 6, 6: 4, 7: 3, 8: 2}
-
-    if "roles_by_level_subdept_quarter" not in st.session_state:
-        st.warning("Please complete the Hiring Plan by Level first.")
-    else:
-        recruiter_rows = []
-
-        all_keys = list(st.session_state.roles_by_level_subdept_quarter.keys())
-        unique_sub_depts = sorted(set([(a, s) for (a, s, q) in all_keys]))
-
-        if "recruiters_assigned_subdept" not in st.session_state:
-            st.session_state.recruiters_assigned_subdept = {
-                f"{a} – {s}": 1 for (a, s) in unique_sub_depts
-            }
-
-        alloc_groups = sorted(set([a for (a, s) in unique_sub_depts]))
-        for alloc in alloc_groups:
-            with st.expander(f"📁 {alloc}"):
-                for (a, s) in sorted(unique_sub_depts):
-                    if a == alloc:
-                        label = f"{s}"
-                        key = f"recruiters_{a}_{s}"
-                        st.session_state.recruiters_assigned_subdept[f"{a} – {s}"] = st.number_input(
-                            f"{label}", min_value=0,
-                            value=st.session_state.recruiters_assigned_subdept.get(f"{a} – {s}", 1),
-                            step=1, key=key
-                        )
-
-        for (alloc, sub) in unique_sub_depts:
-            if alloc != selected_filter_alloc:
-                continue
-            sub_label = f"{alloc} – {sub}"
-            assigned = st.session_state.recruiters_assigned_subdept[sub_label]
-            for qtr in quarters:
-                levels = st.session_state.roles_by_level_subdept_quarter.get((alloc, sub, qtr), {})
-                total_roles = sum(levels.values())
-                total_recruiters_needed = 0
-                for lvl, count in levels.items():
-                    if level_productivity.get(lvl, 1) > 0:
-                        total_recruiters_needed += count / level_productivity[lvl]
-                total_recruiters_needed = round(total_recruiters_needed, 2)
-                status = "✅" if assigned >= total_recruiters_needed else f"❌ +{round(total_recruiters_needed - assigned, 2)}"
-                recruiter_rows.append((alloc, sub, qtr, total_roles, total_recruiters_needed, assigned, status))
-
-        df_recruiter_need = pd.DataFrame(recruiter_rows, columns=[
-            "Allocation", "Sub-Dept", "Quarter", "Open Roles", "Recruiters Needed", "Recruiters Assigned", "Status"
-        ])
-        st.dataframe(df_recruiter_need, use_container_width=True)
-# ----------------- Page: Forecasting -----------------
-if page == "Forecasting":
-    st.title("📈 Hiring Forecast")
-    st.markdown("Uses hiring plan + time-to-hire settings to forecast recruiter velocity by Sub-Dept, Level, and Quarter.")
-
-    level_bands = {
-        "L1–4": list(range(1, 5)),
-        "L5–7": list(range(5, 8)),
-        "L8–10": list(range(8, 11))
-    }
-
-    if "roles_by_level_subdept_quarter" not in st.session_state or "speed_settings" not in st.session_state:
-        st.warning("Please complete the 'Hiring Plan by Level' and 'Hiring Speed Settings' pages first.")
-    else:
-        forecast_rows = []
-        for (alloc, sub, qtr), levels in st.session_state.roles_by_level_subdept_quarter.items():
-            for lvl, count in levels.items():
-                if count > 0:
-                    band = next((b for b, lvls in level_bands.items() if lvl in lvls), "L1–4")
-                    speed = st.session_state.speed_settings.get(sub, {}).get(band, 30)
-                    velocity = round(90 / speed * count, 2)
-                    forecast_rows.append((alloc, sub, qtr, lvl, count, speed, velocity))
-
-        df_forecast = pd.DataFrame(forecast_rows, columns=[
-            "Allocation", "Sub-Dept", "Quarter", "Level", "Planned Roles", "Time to Hire (days)", "Quarterly Hiring Velocity"
-        ])
-        st.dataframe(df_forecast, use_container_width=True)
-# ----------------- Page: Headcount Adjustments -----------------
-if page == "Headcount Adjustments":
-    st.title("Headcount Adjustments")
-    st.markdown("Adjust employee, planned, and future start counts. See real-time updates to totals and attrition impact.")
-
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "Use this section to adjust employee counts, including future starts and planned openings. Changes update the total headcount and attrition impact in real time.")
-    
-    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
-    edited_df["Total Headcount"] = edited_df[
-        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
-    ].sum(axis=1)
-    st.session_state.headcount_data = edited_df
-
-    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-
-    
-    st.subheader("📌 Summary by Allocation")
-
-    manual_rates = {}
-    for alloc in df_allocation_summary["Allocation"]:
-        manual_rates[alloc] = st.number_input(f"Attrition Rate (%) for {alloc}", min_value=0.0, max_value=100.0,
-                                              value=float(default_attrition_rates.get(alloc, 10.0)*100), step=0.1) / 100
-
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * manual_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-    st.dataframe(df_allocation_summary)
-
-
-        # ----------------- Page: Adjusted Hiring Goals -----------------
-if page == "Adjusted Hiring Goals":
-    st.title("📈 Adjusted Hiring Goals")
-    st.sidebar.subheader("Adjust Attrition Rate for Selected Allocation")
-    selected_allocation = st.sidebar.selectbox("Choose Allocation", df_allocation_summary["Allocation"].unique())
-    new_rate = st.sidebar.slider("Attrition Rate (%)", 0, 50, int(default_attrition_rates[selected_allocation] * 100), 1)
-    default_attrition_rates[selected_allocation] = new_rate / 100
-
-    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
-        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
-        axis=1
-    )
-    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
-
-    st.subheader("📌 Final Hiring Targets After Attrition")
-    st.dataframe(df_allocation_summary)
-
-    st.subheader("📉 Final Hiring Targets by Quarter (Line Chart)")
-    chart_data = df_allocation_summary.copy()
-    for q in ["Q1", "Q2", "Q3", "Q4"]:
-        chart_data[q] = chart_data["Final_Hiring_Target"] * 0.25
-    df_long = chart_data.melt(id_vars="Allocation", value_vars=["Q1", "Q2", "Q3", "Q4"], var_name="Quarter", value_name="Hires")
-    # --------------- Page 4: Finance Overview ----------------
-if page == "Finance Overview":
-    st.title("💰 Finance Overview")
-    original_df = st.session_state.original_headcount
-    current_df = st.session_state.headcount_data
-    delta_df = current_df.copy()
-    delta_df["Original Total"] = original_df["Total Headcount"]
-    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
-    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
-
-    st.subheader("📊 Headcount Changes by Sub-Dept")
-    selected_finance_alloc = st.selectbox("Filter by Allocation", delta_df["Allocation"].unique())
-    filtered_finance = delta_df[delta_df["Allocation"] == selected_finance_alloc]
-    st.dataframe(filtered_finance[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
-
-
-
-# ----------------- Page: Welcome to Pure Storage -----------------
-if page == "Welcome to Workforce Planning":
-    st.set_page_config(page_title="Workforce Planning Portal", layout="wide")
-
-    st.markdown("""
-        <style>
-            body, .css-18e3th9, .css-1d391kg {
-                background-color: #1e1e1e !important;
-                color: white;
-            }
-            .stButton > button {
-                background-color: #ff4b2b;
-                color: white;
-                border: none;
-                padding: 0.5rem 1.25rem;
-                font-size: 1rem;
-                border-radius: 6px;
-            }
-            .stButton > button:hover {
-                background-color: #ff6b4b;
-                transition: 0.3s;
-            }
-            .stTextInput > div > input {
-                background-color: #333;
-                color: white;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-        <div style='background: linear-gradient(90deg, #ff4b2b, #ff416c); padding: 2rem; border-radius: 0 0 20px 20px;'>
-            <h1 style='color: white; font-size: 2.5rem;'>Welcome to the Workforce Planning Portal</h1>
-            <p style='color: white; font-size: 1.1rem;'>This dashboard helps Talent Operations and Finance align on hiring needs, capacity planning, and recruiter deployment.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-        <div style='padding: 2rem 0 1rem 0;'>
-            <p style='color: white; font-size: 1.05rem;'>Use the sidebar to explore the hiring plan, adjust headcount goals, model recruiter demand by level and quarter, and review time-to-hire assumptions.</p>
-            <p style='color: white; font-size: 1.05rem;'>Let’s build smarter, faster, and more strategically.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-if page == "Success Metrics":
-    st.title("📊 Success Metrics & TA Benchmarks")
-
-    with st.expander("ℹ️ How to Use This Section"):
-        st.markdown( "This view compares current totals against original planned values. Use it to identify departments that may need finance approval for added headcount.")
-
-    metrics_data = {
-        "Metric": [
-            "Avg Hires per Recruiter per Quarter",
-            "Sourcer-to-Recruiter Ratio",
-            "Coordinator Load (Reqs per Coordinator)",
-            "Avg Time-to-Fill (days)",
-            "Offer Acceptance Rate (%)"
-        ],
-        "Current Value": ["9.3", "1.2:1", "18", "34", "86%"],
-        "Benchmark": [">= 8", "1.5:1", "< 20", "< 40", ">= 85%"]
-    }
-
-    df_metrics = pd.DataFrame(metrics_data)
-    st.dataframe(df_metrics)
+            st.session_state.regional_staffing[r]["Tech Capacity"] = st.number_input(
+                f"Tech Capacity (Requests/Month) in {r}", min_value=1,
+                value=st.session_state.regional_staffing[r]["Tech Capacity"],
+                key=f"tech_capacity_{r}"
+            )
