@@ -53,7 +53,7 @@ if "role_counts" not in st.session_state or not st.session_state.role_counts:
 # Sidebar Navigation
 navigation = {
     "🏠 Overview": [],
-    "🏘️ Homes Under Management": ["📈 Ratios", "👥 Role Headcount"]
+    "🏘️ Homes Under Management": ["👥 Role Headcount", "📈 Ratios"]
 }
 page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
 
