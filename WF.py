@@ -53,7 +53,7 @@ if "role_counts" not in st.session_state or not st.session_state.role_counts:
 # Sidebar Navigation
 navigation = {
     "🏠 Overview": [],
-    "🏘️ Homes Under Management": ["📈 Ratios"]
+    "🏘️ Homes Under Management": ["📈 Ratios", "👥 Role Headcount"]
 }
 page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
 
@@ -124,6 +124,31 @@ if page == "📈 Ratios":
     total_headcount = sum([sum(st.session_state.role_counts[r].get(role, 0) for role in selected_roles) for r in selected_regions])
     total_ratio = total_units / total_headcount if total_headcount > 0 else None
     st.markdown(f"### 📊 Total: {int(total_units):,} Homes / {total_headcount:,} Staff = **{total_ratio:.2f} Homes per Headcount**" if total_ratio else "⚠️ Not enough staffing to calculate total ratio.")
+
+
+# Role Headcount Page
+if page == "👥 Role Headcount":
+    st.title("👥 Role Headcount by Region")
+    st.markdown("Update the number of staff allocated to each role across different regions.")
+
+    uploaded_roles = st.file_uploader("📤 Upload Role Headcounts CSV", type=["csv"], key="manual_roles_upload")
+    if uploaded_roles:
+        df_roles = pd.read_csv(uploaded_roles)
+        if all(col in df_roles.columns for col in ["Region", "Role", "Count"]):
+            for _, row in df_roles.iterrows():
+                r, role, count = row["Region"], row["Role"], row["Count"]
+                if r in st.session_state.role_counts and role in st.session_state.role_counts[r]:
+                    st.session_state.role_counts[r][role] = int(count)
+            st.success("✅ Headcounts updated from CSV.")
+
+    for r in regions:
+        with st.expander(f"{r}"):
+            for role in roles:
+                st.session_state.role_counts[r][role] = st.number_input(
+                    f"{role} in {r}", min_value=0,
+                    value=st.session_state.role_counts[r].get(role, 0),
+                    key=f"{r}_{role}_input"
+                )
 
 # Placeholder for other pages
 if page in navigation["🏘️ Homes Under Management"]:
