@@ -53,7 +53,7 @@ if "role_counts" not in st.session_state or not st.session_state.role_counts:
 # Sidebar Navigation
 navigation = {
     "🏠 Overview": [],
-    "🏘️ Homes Under Management": ["📊 Staffing Overview", "👷 PM Capacity", "🔧 Tech Capacity", "📈 Ratios"]
+    "🏘️ Homes Under Management": ["📈 Ratios"]
 }
 page = st.sidebar.radio("Go to", list(navigation.keys()) + sum(navigation.values(), []))
 
@@ -117,7 +117,13 @@ if page == "📈 Ratios":
         ratio = total_units / total_headcount if total_headcount > 0 else None
         data.append({"Role": role, "Headcount": total_headcount, "Homes per Headcount": ratio if ratio else "⚠️ No coverage"})
 
-    st.dataframe(pd.DataFrame(data))
+    df_ratios = pd.DataFrame(data)
+    st.dataframe(df_ratios)
+
+    # Total ratio summary
+    total_headcount = sum([sum(st.session_state.role_counts[r].get(role, 0) for role in selected_roles) for r in selected_regions])
+    total_ratio = total_units / total_headcount if total_headcount > 0 else None
+    st.markdown(f"### 📊 Total: {int(total_units):,} Homes / {total_headcount:,} Staff = **{total_ratio:.2f} Homes per Headcount**" if total_ratio else "⚠️ Not enough staffing to calculate total ratio.")
 
 # Placeholder for other pages
 if page in navigation["🏘️ Homes Under Management"]:
