@@ -1,0 +1,76 @@
+Region,Role,Count
+West,Field Ops,3
+West,Maintenance Techs,7
+West,PM G&A,2
+West,PM Accounting,4
+West,HOA & Compliance,8
+West,Sales Transition,4
+West,Leasing,8
+West,Resident Services,7
+West,Underwriting,9
+West,Turn Management,7
+West,R&M,2
+West,Vendor relationship,5
+West,Renovations,9
+West,Portfolio Management,2
+West,OSM,8
+Midwest,Field Ops,9
+Midwest,Maintenance Techs,7
+Midwest,PM G&A,6
+Midwest,PM Accounting,4
+Midwest,HOA & Compliance,8
+Midwest,Sales Transition,6
+Midwest,Leasing,3
+Midwest,Resident Services,7
+Midwest,Underwriting,6
+Midwest,Turn Management,9
+Midwest,R&M,4
+Midwest,Vendor relationship,7
+Midwest,Renovations,3
+Midwest,Portfolio Management,3
+Midwest,OSM,2
+South,Field Ops,9
+South,Maintenance Techs,6
+South,PM G&A,4
+South,PM Accounting,5
+South,HOA & Compliance,6
+South,Sales Transition,5
+South,Leasing,2
+South,Resident Services,7
+South,Underwriting,8
+South,Turn Management,9
+South,R&M,7
+South,Vendor relationship,8
+South,Renovations,5
+South,Portfolio Management,5
+South,OSM,4
+Northeast,Field Ops,7
+Northeast,Maintenance Techs,5
+Northeast,PM G&A,8
+Northeast,PM Accounting,3
+Northeast,HOA & Compliance,5
+Northeast,Sales Transition,9
+Northeast,Leasing,3
+Northeast,Resident Services,8
+Northeast,Underwriting,8
+Northeast,Turn Management,2
+Northeast,R&M,8
+Northeast,Vendor relationship,2
+Northeast,Renovations,6
+Northeast,Portfolio Management,9
+Northeast,OSM,8
+Pacific,Field Ops,2
+Pacific,Maintenance Techs,4
+Pacific,PM G&A,5
+Pacific,PM Accounting,8
+Pacific,HOA & Compliance,4
+Pacific,Sales Transition,3
+Pacific,Leasing,5
+Pacific,Resident Services,8
+Pacific,Underwriting,9
+Pacific,Turn Management,7
+Pacific,R&M,4
+Pacific,Vendor relationship,7
+Pacific,Renovations,4
+Pacific,Portfolio Management,2
+Pacific,OSM,6
