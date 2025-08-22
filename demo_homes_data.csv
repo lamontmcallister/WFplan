@@ -1,6 +1,6 @@
 Region,Property Type,Units,Complexity (1-5)
-West,Single-Family,120,3
-Midwest,Multi-Unit,95,4
-South,Luxury,150,5
-Northeast,Single-Family,80,2
-Pacific,Multi-Unit,110,3
+West,Single-Family,4600,3
+Midwest,Multi-Unit,3800,4
+South,Luxury,5200,5
+Northeast,Single-Family,3100,2
+Pacific,Multi-Unit,2600,3
