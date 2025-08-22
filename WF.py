@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-
 import numpy as np
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
@@ -31,18 +30,25 @@ regions = ["West", "Midwest", "South", "Northeast", "Pacific"]
 roles = [
     "Field Ops", "Maintenance Techs", "PM G&A", "PM Accounting", "HOA & Compliance", "Sales Transition",
     "Leasing", "Resident Services", "Underwriting", "Turn Management", "R&M",
-    "Vendor relationship", "Renovations"
+    "Vendor relationship", "Renovations", "Portfolio Management", "OSM"
 ]
 
-# Homes Under Management Data
-if "properties" not in st.session_state:
-    st.session_state.properties = pd.DataFrame(columns=["Region", "Property Type", "Units", "Complexity (1-5)"])
+# Load demo data if session is empty
+if "properties" not in st.session_state or st.session_state.properties.empty:
+    try:
+        st.session_state.properties = pd.read_csv("demo_homes_data.csv")
+    except:
+        st.warning("⚠️ Demo homes data not found.")
 
-# Role Counts by Region
-if "role_counts" not in st.session_state:
-    st.session_state.role_counts = {
-        r: {role: 0 for role in roles} for r in regions
-    }
+if "role_counts" not in st.session_state or not st.session_state.role_counts:
+    try:
+        demo_roles_df = pd.read_csv("demo_role_counts.csv")
+        st.session_state.role_counts = {r: {} for r in demo_roles_df["Region"].unique()}
+        for _, row in demo_roles_df.iterrows():
+            region, role, count = row["Region"], row["Role"], row["Count"]
+            st.session_state.role_counts[region][role] = int(count)
+    except:
+        st.warning("⚠️ Demo role counts not found.")
 
 # Sidebar Navigation
 navigation = {
@@ -107,7 +113,7 @@ if page == "📈 Ratios":
 
     data = []
     for role in selected_roles:
-        total_headcount = sum(st.session_state.role_counts[r][role] for r in selected_regions)
+        total_headcount = sum(st.session_state.role_counts[r].get(role, 0) for r in selected_regions)
         ratio = total_units / total_headcount if total_headcount > 0 else None
         data.append({"Role": role, "Headcount": total_headcount, "Homes per Headcount": ratio if ratio else "⚠️ No coverage"})
 
@@ -116,4 +122,3 @@ if page == "📈 Ratios":
 # Placeholder for other pages
 if page in navigation["🏘️ Homes Under Management"]:
     st.info("This section is available in the full build. Focus here is on 'Homes' and 'Ratios'.")
-
