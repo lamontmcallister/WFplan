@@ -64,24 +64,24 @@ if "homes" not in st.session_state:
         ])
     st.session_state.homes = demo_df.copy()
 
-# Role groups (Departments) used for filters & section headers
-if "role_groups" not in st.session_state:
-    st.session_state.role_groups = pd.DataFrame({
+# Business Lines used for filters & section headers (replaces "Group"/"Department")
+if "role_business_lines" not in st.session_state:
+    st.session_state.role_business_lines = pd.DataFrame({
         "Role": CANONICAL_ROLES,
-        "Group": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
-                  "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
-                  "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
-                  "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
-                  "41007 HOA & Compliance" if ("HOA" in r) else
-                  "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
-                  "41010 Portfolio Management" if ("Property Manager" in r) else
-                  "41022 Sales Transition" if ("Asset" in r) else
-                  "41016 OSM" if ("Onsite Manager" in r) else
-                  "Other"
-                 for r in CANONICAL_ROLES]
+        "Business Line": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
+                          "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
+                          "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
+                          "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
+                          "41007 HOA & Compliance" if ("HOA" in r) else
+                          "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
+                          "41010 Portfolio Management" if ("Property Manager" in r) else
+                          "41022 Sales Transition" if ("Asset" in r) else
+                          "41016 OSM" if ("Onsite Manager" in r) else
+                          "Other"
+                         for r in CANONICAL_ROLES]
     })
 
-DEPARTMENTS = ["All"] + sorted(st.session_state.role_groups["Group"].unique().tolist())
+BUSINESS_LINES = ["All"] + sorted(st.session_state.role_business_lines["Business Line"].unique().tolist())
 
 def blank_plan_actual(colname):
     rows = []
@@ -165,18 +165,19 @@ if page == "🗺️ Title Mapping":
             st.session_state.title_mapping.to_csv("title_mapping_saved.csv", index=False)
             st.success("Saved to title_mapping_saved.csv")
 
-# --- Role Headcount (Month + Department filters) ---
+# --- Role Headcount (Month + Business Line filters) ---
 if page == "👥 Role Headcount":
     st.title("👥 Role Headcount — Annual (Planned vs Actual)")
     sel_month = st.selectbox("Month", ["All"] + MONTHS, index=(MONTHS.index(CURRENT_MONTH)+1))
-    sel_dept = st.selectbox("Department", DEPARTMENTS, index=0, help="Filter by role group / department")
-    st.caption("Variance = Planned − Actual.")
+    sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
+    st.caption("Variance = Planned − Actual (filtered by Business Line).")
 
-    # Editable Departments
-    with st.expander("🗂️ Edit Departments (Role → Group)"):
-        st.session_state.role_groups = st.data_editor(
-            st.session_state.role_groups, num_rows="dynamic", use_container_width=True, key="edit_groups"
+    # Editable Business Lines
+    with st.expander("🗂️ Edit Business Lines (Role → Business Line)"):
+        st.session_state.role_business_lines = st.data_editor(
+            st.session_state.role_business_lines, num_rows="dynamic", use_container_width=True, key="edit_business_lines"
         )
+        st.caption("Tip: You can also upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
 
     # Uploaders
     colu1, colu2 = st.columns(2)
@@ -201,23 +202,23 @@ if page == "👥 Role Headcount":
             else:
                 st.error("Actual CSV must have columns: Role, Month, Actual")
 
-    # Merge groups for filtering
-    def attach_group(df):
-        return df.merge(st.session_state.role_groups, on="Role", how="left").fillna({"Group":"Other"})
-    plan_g = attach_group(st.session_state.planned)
-    act_g  = attach_group(st.session_state.actual)
+    # Merge Business Line for filtering
+    def attach_business_line(df):
+        return df.merge(st.session_state.role_business_lines, on="Role", how="left").fillna({"Business Line":"Other"})
+    plan_g = attach_business_line(st.session_state.planned)
+    act_g  = attach_business_line(st.session_state.actual)
 
-    if sel_dept != "All":
-        plan_g = plan_g.query("Group == @sel_dept")
-        act_g  = act_g .query("Group == @sel_dept")
+    if sel_bline != "All":
+        plan_g = plan_g.query("`Business Line` == @sel_bline")
+        act_g  = act_g .query("`Business Line` == @sel_bline")
 
     # Pivot helpers
     def to_wide(df, val):
         if df.empty:
-            base = pd.DataFrame({"Group":[],"Role":[]})
+            base = pd.DataFrame({"Business Line":[],"Role":[]})
             for m in MONTHS: base[m] = []
             return base
-        pvt = df.pivot_table(index=["Group","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
+        pvt = df.pivot_table(index=["Business Line","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
         pvt = pvt.reset_index()
         return pvt
 
@@ -226,11 +227,11 @@ if page == "👥 Role Headcount":
 
     # If a specific month is chosen, collapse to single column
     if sel_month != "All":
-        month_col_plan = ["Group","Role", sel_month]
-        month_col_act  = ["Group","Role", sel_month]
+        month_col_plan = ["Business Line","Role", sel_month]
+        month_col_act  = ["Business Line","Role", sel_month]
         wide_plan = wide_plan[month_col_plan].rename(columns={sel_month:"Planned"})
         wide_act  = wide_act [month_col_act ].rename(columns={sel_month:"Actual" })
-        wide_var  = wide_plan.merge(wide_act, on=["Group","Role"], how="outer").fillna(0)
+        wide_var  = wide_plan.merge(wide_act, on=["Business Line","Role"], how="outer").fillna(0)
         wide_var["Variance"] = wide_var["Planned"].astype(int) - wide_var["Actual"].astype(int)
 
         st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
@@ -238,7 +239,7 @@ if page == "👥 Role Headcount":
         st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
         st.dataframe(wide_act, use_container_width=True)
         st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-        st.dataframe(wide_var[["Group","Role","Variance"]], use_container_width=True)
+        st.dataframe(wide_var[["Business Line","Role","Variance"]], use_container_width=True)
     else:
         # Variance = Plan - Actual per month
         wide_var = wide_plan.copy()
@@ -248,9 +249,9 @@ if page == "👥 Role Headcount":
         def add_totals(df, label="Total HC"):
             if df.empty: return df
             out = []
-            for g, sub in df.groupby("Group", sort=False):
+            for g, sub in df.groupby("Business Line", sort=False):
                 out.append(sub)
-                tot = {"Group": g, "Role": label}
+                tot = {"Business Line": g, "Role": label}
                 for m in MONTHS:
                     tot[m] = int(sub[m].sum())
                 out.append(pd.DataFrame([tot]))
@@ -263,18 +264,18 @@ if page == "👥 Role Headcount":
         st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
         st.dataframe(add_totals(wide_var), use_container_width=True)
 
-# --- Ratios (Month + Department filters) ---
+# --- Ratios (Month + Business Line filters) ---
 if page == "📈 Ratios":
     st.title("📈 Ratios: Homes per Headcount (Actuals)")
     sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
-    sel_dept  = st.selectbox("Department", DEPARTMENTS, index=0)
+    sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
 
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
-    # Attach group to actuals for dept filtering
-    act = st.session_state.actual.merge(st.session_state.role_groups, on="Role", how="left").fillna({"Group":"Other"})
-    if sel_dept != "All":
-        act = act.query("Group == @sel_dept")
+    # Attach business line to actuals for filtering
+    act = st.session_state.actual.merge(st.session_state.role_business_lines, on="Role", how="left").fillna({"Business Line":"Other"})
+    if sel_bline != "All":
+        act = act.query("`Business Line` == @sel_bline")
 
     month_actuals = act.query("Month == @sel_month").copy()
     role_sums = month_actuals.groupby("Role", as_index=False)["Actual"].sum()
