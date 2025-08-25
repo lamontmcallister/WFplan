@@ -4,6 +4,124 @@ import numpy as np
 from datetime import datetime
 import os
 
+
+import re
+from collections import Counter
+
+BL_MAPPING_CSV = "PM HC Trend by Business Line - 1. Title Mapping.csv"
+
+def _clean_role_label(raw: str) -> str:
+    # Convert like "5. Field Dispatcher" -> "Field Dispatcher"
+    if not isinstance(raw, str):
+        return str(raw)
+    return re.sub(r"^\s*\d+\.\s*", "", raw).strip()
+
+def load_mapping_from_business_line_csv(path=BL_MAPPING_CSV):
+    """
+    Builds:
+      - title_mapping: columns ["HRIS Title","Mapped Role"]
+      - role_groups:   columns ["Role","Group"] where Group = Business Line
+    """
+    import pandas as pd, os
+    if not os.path.exists(path):
+        return None, None
+
+    df = pd.read_csv(path)
+    # Expect columns: Business Line, Job Title in Bamboo, Role, ...
+    required = {"Business Line", "Job Title in Bamboo", "Role"}
+    if not required.issubset(df.columns):
+        return None, None
+
+    # Clean role labels
+    df["Role_Clean"] = df["Role"].apply(_clean_role_label)
+
+    # Title -> Role mapping (dedupe)
+    tm = (
+        df[["Job Title in Bamboo", "Role_Clean"]]
+        .dropna()
+        .drop_duplicates()
+        .rename(columns={"Job Title in Bamboo": "HRIS Title", "Role_Clean": "Mapped Role"})
+        .sort_values(["HRIS Title", "Mapped Role"])
+        .reset_index(drop=True)
+    )
+
+    # Role -> Group (Business Line). If a role shows up in multiple BLs, pick the mode.
+    g_rows = []
+    for role, sub in df.groupby("Role_Clean"):
+        bls = [str(x).strip() for x in sub["Business Line"].dropna().tolist()]
+        if not bls:
+            continue
+        # mode of Business Line for this role
+        bl = Counter(bls).most_common(1)[0][0]
+        g_rows.append({"Role": role, "Group": bl})
+    rg = pd.DataFrame(g_rows).sort_values(["Group", "Role"]).reset_index(drop=True)
+
+    return tm, rg
+
+
+
+
+
+# --- Seed mapping (fallback only) ---
+SEED_MAPPING = pd.DataFrame({
+    "HRIS Title": ["Leasing Associate","Team Lead, Leasing","Lease Marketing Associate","Manager, Leasing","Contact Center Associate","Field Dispatcher",
+                   "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
+                   "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
+                   "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"],
+    "Mapped Role": ["Leasing Associate","Team Lead, Leasing","Lease Marketing","Manager, Leasing","Contact Center Associate","Field Dispatcher",
+                    "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
+                    "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
+                    "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"]
+})
+
+def load_title_mapping():
+    # 1) Prefer a saved override from the UI
+    import os, pandas as pd
+    if os.path.exists("title_mapping_saved.csv"):
+        try:
+            m = pd.read_csv("title_mapping_saved.csv")
+            if set(["HRIS Title","Mapped Role"]).issubset(m.columns):
+                return m[["HRIS Title","Mapped Role"]].copy()
+        except Exception:
+            pass
+
+    # 2) Prefer Business Line CSV
+    tm, _ = load_mapping_from_business_line_csv()
+    if tm is not None and not tm.empty:
+        return tm
+
+    # 3) Fallback to seed
+    return SEED_MAPPING.copy()
+
+def load_role_groups(canonical_roles):
+    # 1) Prefer Business Line CSV role->group
+    _, rg = load_mapping_from_business_line_csv()
+    if rg is not None and not rg.empty:
+        # Ensure all canonical roles have a group; default to "Other" if missing
+        import pandas as pd
+        have = set(rg["Role"].tolist())
+        missing = [r for r in canonical_roles if r not in have]
+        if missing:
+            rg = pd.concat([rg, pd.DataFrame({"Role": missing, "Group": ["Other"]*len(missing)})], ignore_index=True)
+        return rg
+
+    # 2) Fallback: infer groups from role name keywords
+    import pandas as pd
+    rows = []
+    for r in canonical_roles:
+        g = ("41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
+             "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
+             "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
+             "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
+             "41007 HOA & Compliance" if ("HOA" in r) else
+             "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
+             "41010 Portfolio Management" if ("Property Manager" in r) else
+             "41022 Sales Transition" if ("Asset" in r) else
+             "41016 OSM" if ("Onsite Manager" in r) else
+             "Other")
+        rows.append({"Role": r, "Group": g})
+    return pd.DataFrame(rows)
+
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
 # --- Styles ---
@@ -22,32 +140,10 @@ MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec
 CURRENT_MONTH = MONTHS[datetime.now().month-1]
 
 # --- Seed mapping (trim, editable later) ---
-SEED_MAPPING = pd.DataFrame({
-    "HRIS Title": ["Leasing Associate","Team Lead, Leasing","Lease Marketing Associate","Manager, Leasing","Contact Center Associate","Field Dispatcher",
-                   "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
-                   "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
-                   "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"],
-    "Mapped Role": ["Leasing Associate","Team Lead, Leasing","Lease Marketing","Manager, Leasing","Contact Center Associate","Field Dispatcher",
-                    "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
-                    "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
-                    "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"]
-})
-
-CANONICAL_ROLES = sorted(SEED_MAPPING["Mapped Role"].unique().tolist())
-
-def load_mapping():
-    if os.path.exists("title_mapping_saved.csv"):
-        try:
-            m = pd.read_csv("title_mapping_saved.csv")
-            if set(["HRIS Title","Mapped Role"]).issubset(m.columns):
-                return m[["HRIS Title","Mapped Role"]].copy()
-        except Exception:
-            pass
-    return SEED_MAPPING.copy()
-
+CANONICAL_ROLES = sorted(st.session_state.title_mapping["Mapped Role"].dropna().unique().tolist())
 # --- Session state init ---
 if "title_mapping" not in st.session_state:
-    st.session_state.title_mapping = load_mapping()
+    st.session_state.title_mapping = load_title_mapping()
 
 # Homes: ensure demo data exists (total ~19,300) even if CSV missing
 if "homes" not in st.session_state:
@@ -66,7 +162,7 @@ if "homes" not in st.session_state:
 
 # Role groups (Departments) used for filters & section headers
 if "role_groups" not in st.session_state:
-    st.session_state.role_groups = pd.DataFrame({
+    st.session_state.role_groups = load_role_groups(CANONICAL_ROLES)
         "Role": CANONICAL_ROLES,
         "Group": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
                   "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
@@ -174,7 +270,7 @@ if page == "👥 Role Headcount":
 
     # Editable Departments
     with st.expander("🗂️ Edit Departments (Role → Group)"):
-        st.session_state.role_groups = st.data_editor(
+        st.session_state.role_groups = load_role_groups(CANONICAL_ROLES)
             st.session_state.role_groups, num_rows="dynamic", use_container_width=True, key="edit_groups"
         )
 
