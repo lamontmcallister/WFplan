@@ -1,210 +1,186 @@
 import streamlit as st
 import pandas as pd
-
+import numpy as np
 from datetime import datetime
 import os
 
-st.set_page_config(page_title="Roostock Ops Dashboard", layout="wide")
+st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
-# -------- Style --------
+# --- Styles ---
 st.markdown("""
 <style>
-  body { background:#1e1e1e !important; color:#fff !important; }
-  .stDataFrame, .stNumberInput input, .stTextInput input, .stSelectbox, .stMultiSelect { background:#333 !important; color:#fff !important; }
-  .stButton > button { background:#ff4b2b; color:white; }
-  .stButton > button:hover { background:#ff6b4b; }
-  .bluehdr { background:#0b5ed7; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 6px 0;}
-  .sectionhdr { background:#444; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 10px 0;}
+    body { background:#1e1e1e !important; color:#fff !important; }
+    .stDataFrame, .stNumberInput input, .stTextInput input, .stSelectbox, .stMultiSelect { background:#333 !important; color:#fff !important; }
+    .stButton > button { background:#ff4b2b; color:white; }
+    .stButton > button:hover { background:#ff6b4b; }
+    .bluehdr { background:#0b5ed7; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 6px 0;}
+    .sectionhdr { background:#444; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 10px 0;}
 </style>
 """, unsafe_allow_html=True)
 
 MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 CURRENT_MONTH = MONTHS[datetime.now().month-1]
 
-# -------- Mapping loader (Business Line only) --------
-MAPPING_FILENAMES = [
-    "PM HC Trend by Department - 1. Title Mapping.csv",
-    "title_mapping_saved.csv",
-    "title_mapping.csv"
-]
+# --- Seed mapping (trim, editable later) ---
+SEED_MAPPING = pd.DataFrame({
+    "HRIS Title": ["Leasing Associate","Team Lead, Leasing","Lease Marketing Associate","Manager, Leasing","Contact Center Associate","Field Dispatcher",
+                   "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
+                   "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
+                   "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"],
+    "Mapped Role": ["Leasing Associate","Team Lead, Leasing","Lease Marketing","Manager, Leasing","Contact Center Associate","Field Dispatcher",
+                    "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
+                    "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
+                    "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"]
+})
 
-def _normalize_mapping(df):
-    cmap = {c.lower().strip(): c for c in df.columns}
-    role_col = cmap.get("mapped role") or cmap.get("role")
-    if not role_col:
-        raise ValueError("Mapping CSV must include 'Mapped Role' or 'Role'.")
-    bl_col  = cmap.get("business line") or cmap.get("biz line") or cmap.get("line")
-    out = pd.DataFrame({"Role": df[role_col].astype(str).str.strip()})
-    out["Business Line"] = df[bl_col].astype(str).str.strip() if bl_col else "All"
-    return out.drop_duplicates()
+CANONICAL_ROLES = sorted(SEED_MAPPING["Mapped Role"].unique().tolist())
 
 def load_mapping():
-    # try known filenames
-    for fn in MAPPING_FILENAMES:
-        if os.path.exists(fn):
-            try:
-                return _normalize_mapping(pd.read_csv(fn))
-            except Exception:
-                pass
-    # scan current dir for any CSV with a role column
-    for fn in os.listdir("."):
-        if fn.lower().endswith(".csv"):
-            try:
-                df = pd.read_csv(fn)
-                lc = [c.lower().strip() for c in df.columns]
-                if ("mapped role" in lc) or ("role" in lc):
-                    return _normalize_mapping(df)
-            except Exception:
-                continue
-    return pd.DataFrame(columns=["Role","Business Line"])
+    if os.path.exists("title_mapping_saved.csv"):
+        try:
+            m = pd.read_csv("title_mapping_saved.csv")
+            if set(["HRIS Title","Mapped Role"]).issubset(m.columns):
+                return m[["HRIS Title","Mapped Role"]].copy()
+        except Exception:
+            pass
+    return SEED_MAPPING.copy()
 
-# -------- Session init --------
-if "mapping" not in st.session_state:
-    st.session_state.mapping = load_mapping()
+# --- Session state init ---
+if "title_mapping" not in st.session_state:
+    st.session_state.title_mapping = load_mapping()
 
-if "roles" not in st.session_state:
-    st.session_state.roles = sorted(st.session_state.mapping["Role"].unique().tolist()) if not st.session_state.mapping.empty else []
-
-# Homes demo fallback to 19,300
+# Homes: ensure demo data exists (total ~19,300) even if CSV missing
 if "homes" not in st.session_state:
-    demo = None
+    demo_df = None
     if os.path.exists("demo_homes_data.csv"):
         try:
-            demo = pd.read_csv("demo_homes_data.csv")[["Property Type","Units"]]
+            demo_df = pd.read_csv("demo_homes_data.csv")[["Property Type","Units"]]
         except Exception:
-            demo = None
-    if demo is None or demo.empty:
-        demo = pd.DataFrame([
+            demo_df = None
+    if demo_df is None or demo_df.empty:
+        demo_df = pd.DataFrame([
             {"Property Type":"Single-Family Rental","Units":15000},
             {"Property Type":"Short Term Rental","Units":4300},
         ])
-    st.session_state.homes = demo.copy()
+    st.session_state.homes = demo_df.copy()
 
-def blank_pa(colname):
+# Role groups (Departments) used for filters & section headers
+if "role_groups" not in st.session_state:
+    st.session_state.role_groups = pd.DataFrame({
+        "Role": CANONICAL_ROLES,
+        "Group": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
+                  "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
+                  "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
+                  "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
+                  "41007 HOA & Compliance" if ("HOA" in r) else
+                  "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
+                  "41010 Portfolio Management" if ("Property Manager" in r) else
+                  "41022 Sales Transition" if ("Asset" in r) else
+                  "41016 OSM" if ("Onsite Manager" in r) else
+                  "Other"
+                 for r in CANONICAL_ROLES]
+    })
+
+DEPARTMENTS = ["All"] + sorted(st.session_state.role_groups["Group"].unique().tolist())
+
+def blank_plan_actual(colname):
     rows = []
-    for r in st.session_state.roles:
+    for role in CANONICAL_ROLES:
         for m in MONTHS:
-            rows.append({"Role": r, "Month": m, colname: 0})
+            rows.append({"Role": role, "Month": m, colname: 0})
     return pd.DataFrame(rows)
 
 if "planned" not in st.session_state:
-    st.session_state.planned = blank_pa("Planned")
+    st.session_state.planned = blank_plan_actual("Planned")
 if "actual" not in st.session_state:
-    st.session_state.actual = blank_pa("Actual")
+    st.session_state.actual = blank_plan_actual("Actual")
 
-def business_lines():
-    if st.session_state.mapping.empty: return ["All"]
-    return ["All"] + sorted(st.session_state.mapping["Business Line"].dropna().unique().tolist())
-
-# -------- Navigation --------
+# --- Navigation ---
 NAV = {
     "🏠 Overview": [],
-    "🏘️ Homes Under Management": ["👥 Headcount", "🗺️ Title Mapping", "📈 Ratios"]
+    "🏘️ Homes Under Management": ["👥 Role Headcount", "🗺️ Title Mapping", "📈 Ratios"]
 }
 page = st.sidebar.radio("Go to", list(NAV.keys()) + sum(NAV.values(), []))
 
-# -------- Overview --------
+# --- Overview ---
 if page == "🏠 Overview":
-    st.title("Roostock Ops Dashboard")
+    st.title("Roostock Property Ops Dashboard")
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
     m = CURRENT_MONTH
-    total_actual = int(st.session_state.actual.query("Month == @m")["Actual"].sum()) if not st.session_state.actual.empty else 0
-    c1, c2 = st.columns(2)
-    c1.metric("🏘️ Total Homes", f"{total_homes:,}")
-    c2.metric(f"👥 Actual HC ({m})", f"{total_actual:,}")
-    if st.session_state.mapping.empty:
-        st.warning("No mapping loaded. Upload Title Mapping in '🗺️ Title Mapping' to enable Business Line filtering.")
+    total_actual = int(st.session_state.actual.query("Month == @m")["Actual"].sum())
+    col1, col2 = st.columns(2)
+    col1.metric("🏘️ Total Homes (all types)", f"{total_homes:,}")
+    col2.metric(f"👥 Actual HC ({m})", f"{total_actual:,}")
+    st.caption("Ratios use **Actuals** for the selected month in the Ratios tab.")
 
-# -------- Homes --------
+# --- Homes Under Management ---
 if page == "🏘️ Homes Under Management":
     st.title("🏘️ Homes Under Management")
+    st.caption("Columns: Property Type, Units. Upload to replace or add/delete inline.")
     st.dataframe(st.session_state.homes, use_container_width=True)
     if not st.session_state.homes.empty:
-        idx = st.number_input("Row index to delete", min_value=0, max_value=len(st.session_state.homes)-1, step=1)
+        idx_to_del = st.number_input("Row index to delete", min_value=0, max_value=len(st.session_state.homes)-1, step=1)
         if st.button("Delete Home"):
-            st.session_state.homes.drop(index=idx, inplace=True)
+            st.session_state.homes.drop(index=idx_to_del, inplace=True)
             st.session_state.homes.reset_index(drop=True, inplace=True)
             st.success("Deleted.")
     with st.expander("➕ Add Home"):
         col1, col2 = st.columns(2)
-        with col1: ptype = st.selectbox("Property Type", ["Single-Family Rental","Short Term Rental"])
-        with col2: units = st.number_input("Units", min_value=1, step=1)
+        with col1:
+            ptype = st.selectbox("Property Type", ["Single-Family Rental","Short Term Rental"])
+        with col2:
+            units = st.number_input("Units", min_value=1, step=1)
         if st.button("Add"):
             st.session_state.homes = pd.concat([st.session_state.homes, pd.DataFrame([{"Property Type": ptype, "Units": int(units)}])], ignore_index=True)
             st.success("Home added.")
-    up = st.file_uploader("📤 Upload CSV to REPLACE homes (Property Type, Units)", type=["csv"])
+    up = st.file_uploader("📤 Upload CSV to REPLACE homes", type=["csv"])
     if up:
         df = pd.read_csv(up)
-        if all(c in df.columns for c in ["Property Type","Units"]):
-            st.session_state.homes = df[["Property Type","Units"]].copy()
+        needed = ["Property Type","Units"]
+        if all(c in df.columns for c in needed):
+            st.session_state.homes = df[needed].copy()
             st.success("Homes replaced.")
         else:
-            st.error("CSV must include: Property Type, Units")
+            st.error("CSV must include columns: Property Type, Units")
 
-# -------- Title Mapping (Role + Business Line only) --------
+# --- Title Mapping ---
 if page == "🗺️ Title Mapping":
-    st.title("🗺️ Title Mapping (HRIS → Role → Business Line)")
-    st.caption("App auto-loads a mapping CSV in the working directory. Upload to override; Save to persist.")
-    up_map = st.file_uploader("📤 Upload Mapping CSV (must include Role/Mapped Role; optional Business Line)", type=["csv"])
+    st.title("🗺️ Title Mapping (HRIS → Reporting Roles)")
+    up_map = st.file_uploader("📤 Upload Mapping CSV (HRIS Title, Mapped Role)", type=["csv"])
     if up_map:
-        try:
-            df = pd.read_csv(up_map)
-            cmap = {c.lower().strip(): c for c in df.columns}
-            role_col = cmap.get("mapped role") or cmap.get("role")
-            if not role_col: st.stop()
-            bl_col   = cmap.get("business line") or cmap.get("biz line") or cmap.get("line")
-            new = pd.DataFrame({"Role": df[role_col].astype(str).str.strip()})
-            new["Business Line"] = df[bl_col].astype(str).str.strip() if bl_col else "All"
-            st.session_state.mapping = new.drop_duplicates()
-            st.session_state.roles = sorted(st.session_state.mapping["Role"].unique().tolist())
-            st.success("Mapping loaded into app state.")
-        except Exception as e:
-            st.error(f"Couldn't read mapping CSV: {e}")
+        df = pd.read_csv(up_map)
+        if set(["HRIS Title","Mapped Role"]).issubset(df.columns):
+            st.session_state.title_mapping = df[["HRIS Title","Mapped Role"]].copy()
+            st.success("Mapping loaded.")
+        else:
+            st.error("CSV must include columns: HRIS Title, Mapped Role")
+    st.session_state.title_mapping = st.data_editor(
+        st.session_state.title_mapping, num_rows="dynamic", use_container_width=True, key="edit_mapping"
+    )
+    colm1, colm2 = st.columns(2)
+    with colm1:
+        st.download_button("⬇️ Download Current Mapping", st.session_state.title_mapping.to_csv(index=False), "title_mapping.csv")
+    with colm2:
+        if st.button("💾 Save Mapping to CSV"):
+            st.session_state.title_mapping.to_csv("title_mapping_saved.csv", index=False)
+            st.success("Saved to title_mapping_saved.csv")
 
-    if st.button("💾 Save Mapping to CSV (title_mapping_saved.csv)"):
-        st.session_state.mapping.to_csv("title_mapping_saved.csv", index=False)
-        st.success("Saved title_mapping_saved.csv")
-
-    st.dataframe(st.session_state.mapping, use_container_width=True)
-
-# -------- Helpers --------
-def attach_bl(df):
-    if df.empty: return df.assign(**({"Business Line":"All"} if "Business Line" not in df.columns else {}))
-    m = st.session_state.mapping
-    if m.empty: return df.assign(**({"Business Line":"All"} if "Business Line" not in df.columns else {}))
-    return df.merge(m, on="Role", how="left")
-
-def pivot_months(df, value_col):
-    if df.empty:
-        base = pd.DataFrame({"Business Line":[],"Role":[]})
-        for mo in MONTHS: base[mo] = []
-        return base
-    idx_cols = [c for c in ["Business Line","Role"] if c in df.columns]
-    pvt = df.pivot_table(index=idx_cols, columns="Month", values=value_col, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
-    return pvt.reset_index()
-
-def add_totals(df, group_cols, label="Total HC"):
-    if df.empty: return df
-    parts = []
-    for keys, sub in df.groupby(group_cols, sort=False):
-        parts.append(sub)
-        tot = {c: keys[i] for i, c in enumerate(group_cols)} if isinstance(keys, tuple) else {group_cols[0]: keys}
-        tot.update({"Role": label})
-        for mo in MONTHS:
-            if mo in sub.columns: tot[mo] = int(sub[mo].sum())
-        parts.append(pd.DataFrame([tot]))
-    return pd.concat(parts, ignore_index=True)
-
-# -------- Headcount (Month + Business Line) --------
-if page == "👥 Headcount":
-    st.title("👥 Headcount — Planned vs Actual (by Role)")
+# --- Role Headcount (Month + Department filters) ---
+if page == "👥 Role Headcount":
+    st.title("👥 Role Headcount — Annual (Planned vs Actual)")
     sel_month = st.selectbox("Month", ["All"] + MONTHS, index=(MONTHS.index(CURRENT_MONTH)+1))
-    sel_bl = st.selectbox("Business Line", business_lines(), index=0)
+    sel_dept = st.selectbox("Department", DEPARTMENTS, index=0, help="Filter by role group / department")
     st.caption("Variance = Planned − Actual.")
 
-    # Upload
-    c1, c2 = st.columns(2)
-    with c1:
+    # Editable Departments
+    with st.expander("🗂️ Edit Departments (Role → Group)"):
+        st.session_state.role_groups = st.data_editor(
+            st.session_state.role_groups, num_rows="dynamic", use_container_width=True, key="edit_groups"
+        )
+
+    # Uploaders
+    colu1, colu2 = st.columns(2)
+    with colu1:
         up_plan = st.file_uploader("📤 Upload Planned (Role, Month, Planned)", type=["csv"])
         if up_plan:
             df = pd.read_csv(up_plan)
@@ -214,7 +190,7 @@ if page == "👥 Headcount":
                 st.success("Planned loaded.")
             else:
                 st.error("Planned CSV must have columns: Role, Month, Planned")
-    with c2:
+    with colu2:
         up_act = st.file_uploader("📤 Upload Actual (Role, Month, Actual)", type=["csv"])
         if up_act:
             df = pd.read_csv(up_act)
@@ -225,65 +201,91 @@ if page == "👥 Headcount":
             else:
                 st.error("Actual CSV must have columns: Role, Month, Actual")
 
-    plan = attach_bl(st.session_state.planned)
-    act  = attach_bl(st.session_state.actual)
+    # Merge groups for filtering
+    def attach_group(df):
+        return df.merge(st.session_state.role_groups, on="Role", how="left").fillna({"Group":"Other"})
+    plan_g = attach_group(st.session_state.planned)
+    act_g  = attach_group(st.session_state.actual)
 
-    if sel_bl != "All":
-        plan = plan.query("`Business Line` == @sel_bl")
-        act  = act .query("`Business Line` == @sel_bl")
+    if sel_dept != "All":
+        plan_g = plan_g.query("Group == @sel_dept")
+        act_g  = act_g .query("Group == @sel_dept")
 
-    wide_plan = pivot_months(plan, "Planned")
-    wide_act  = pivot_months(act , "Actual")
+    # Pivot helpers
+    def to_wide(df, val):
+        if df.empty:
+            base = pd.DataFrame({"Group":[],"Role":[]})
+            for m in MONTHS: base[m] = []
+            return base
+        pvt = df.pivot_table(index=["Group","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
+        pvt = pvt.reset_index()
+        return pvt
 
+    wide_plan = to_wide(plan_g, "Planned")
+    wide_act  = to_wide(act_g , "Actual")
+
+    # If a specific month is chosen, collapse to single column
     if sel_month != "All":
-        wp = wide_plan[["Business Line","Role", sel_month]].rename(columns={sel_month:"Planned"})
-        wa = wide_act [ ["Business Line","Role", sel_month]].rename(columns={sel_month:"Actual"})
-        wv = wp.merge(wa, on=["Business Line","Role"], how="outer").fillna(0)
-        wv["Variance"] = wv["Planned"].astype(int) - wv["Actual"].astype(int)
+        month_col_plan = ["Group","Role", sel_month]
+        month_col_act  = ["Group","Role", sel_month]
+        wide_plan = wide_plan[month_col_plan].rename(columns={sel_month:"Planned"})
+        wide_act  = wide_act [month_col_act ].rename(columns={sel_month:"Actual" })
+        wide_var  = wide_plan.merge(wide_act, on=["Group","Role"], how="outer").fillna(0)
+        wide_var["Variance"] = wide_var["Planned"].astype(int) - wide_var["Actual"].astype(int)
 
         st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-        st.dataframe(wp, use_container_width=True)
+        st.dataframe(wide_plan, use_container_width=True)
         st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-        st.dataframe(wa, use_container_width=True)
+        st.dataframe(wide_act, use_container_width=True)
         st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-        st.dataframe(wv[["Business Line","Role","Variance"]], use_container_width=True)
+        st.dataframe(wide_var[["Group","Role","Variance"]], use_container_width=True)
     else:
-        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_plan, ["Business Line"]), use_container_width=True)
-        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_act , ["Business Line"]), use_container_width=True)
+        # Variance = Plan - Actual per month
         wide_var = wide_plan.copy()
-        for mo in MONTHS:
-            wide_var[mo] = wide_plan.get(mo, 0) - wide_act.get(mo, 0)
-        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_var, ["Business Line"]), use_container_width=True)
+        for m in MONTHS:
+            wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
 
-# -------- Ratios (Month + Business Line) --------
+        def add_totals(df, label="Total HC"):
+            if df.empty: return df
+            out = []
+            for g, sub in df.groupby("Group", sort=False):
+                out.append(sub)
+                tot = {"Group": g, "Role": label}
+                for m in MONTHS:
+                    tot[m] = int(sub[m].sum())
+                out.append(pd.DataFrame([tot]))
+            return pd.concat(out, ignore_index=True)
+
+        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_plan), use_container_width=True)
+        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_act ), use_container_width=True)
+        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_var), use_container_width=True)
+
+# --- Ratios (Month + Department filters) ---
 if page == "📈 Ratios":
-    st.title("📈 Homes per Headcount (Actuals) — by Role")
+    st.title("📈 Ratios: Homes per Headcount (Actuals)")
     sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
-    sel_bl = st.selectbox("Business Line", business_lines(), index=0)
+    sel_dept  = st.selectbox("Department", DEPARTMENTS, index=0)
 
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
-    act = attach_bl(st.session_state.actual)
-    if sel_bl != "All":
-        act = act.query("`Business Line` == @sel_bl")
+    # Attach group to actuals for dept filtering
+    act = st.session_state.actual.merge(st.session_state.role_groups, on="Role", how="left").fillna({"Group":"Other"})
+    if sel_dept != "All":
+        act = act.query("Group == @sel_dept")
 
     month_actuals = act.query("Month == @sel_month").copy()
-    role_sums = month_actuals.groupby(["Business Line","Role"], as_index=False)["Actual"].sum()
+    role_sums = month_actuals.groupby("Role", as_index=False)["Actual"].sum()
 
     rows = []
     for _, r in role_sums.iterrows():
-        hc = int(r["Actual"])
+        role = r["Role"]; hc = int(r["Actual"])
         ratio = (total_homes / hc) if hc > 0 else None
-        rows.append({
-            "Business Line": r["Business Line"],
-            "Role": r["Role"],
-            "Actual HC": hc,
-            "Homes per HC": (round(ratio,2) if ratio else "⚠️ No coverage")
-        })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        rows.append({"Role": role, "Actual HC": hc, "Homes per HC": (round(ratio,2) if ratio else "⚠️ No coverage")})
+    df_rat = pd.DataFrame(rows)
+    st.dataframe(df_rat, use_container_width=True)
 
     total_hc = int(role_sums["Actual"].sum()) if not role_sums.empty else 0
     total_ratio = (total_homes / total_hc) if total_hc > 0 else None
