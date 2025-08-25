@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
+import re
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
@@ -45,6 +46,20 @@ def load_mapping():
             pass
     return SEED_MAPPING.copy()
 
+# --- Role normalizer to align variants like "1. Service Technician" with "Service Technician" ---
+def normalize_role_series(s: pd.Series) -> pd.Series:
+    def _norm(x):
+        if pd.isna(x):
+            return x
+        x = str(x)
+        x = x.strip()
+        # drop leading numbering/bullets: "1. ", "01) ", "2 - ", etc.
+        x = re.sub(r"^\s*\d+\s*[\.\)\-\–:\s]+\s*", "", x)
+        # collapse multiple spaces
+        x = re.sub(r"\s+", " ", x)
+        return x.lower()
+    return s.map(_norm)
+
 # --- Session state init ---
 if "title_mapping" not in st.session_state:
     st.session_state.title_mapping = load_mapping()
@@ -81,7 +96,13 @@ if "role_business_lines" not in st.session_state:
                          for r in CANONICAL_ROLES]
     })
 
-BUSINESS_LINES = ["All"] + sorted(st.session_state.role_business_lines["Business Line"].unique().tolist())
+# maintain a normalized join key inside session for robust merges
+st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
+
+def refresh_business_lines_list():
+    return ["All"] + sorted(st.session_state.role_business_lines["Business Line"].unique().tolist())
+
+BUSINESS_LINES = refresh_business_lines_list()
 
 def blank_plan_actual(colname):
     rows = []
@@ -169,6 +190,8 @@ if page == "🗺️ Title Mapping":
 if page == "👥 Role Headcount":
     st.title("👥 Role Headcount — Annual (Planned vs Actual)")
     sel_month = st.selectbox("Month", ["All"] + MONTHS, index=(MONTHS.index(CURRENT_MONTH)+1))
+    # refresh business lines list in case user edited the table
+    BUSINESS_LINES = refresh_business_lines_list()
     sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
     st.caption("Variance = Planned − Actual (filtered by Business Line).")
 
@@ -178,6 +201,8 @@ if page == "👥 Role Headcount":
             st.session_state.role_business_lines, num_rows="dynamic", use_container_width=True, key="edit_business_lines"
         )
         st.caption("Tip: You can also upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
+        # keep normalized key up to date
+        st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
 
     # Uploaders
     colu1, colu2 = st.columns(2)
@@ -202,9 +227,15 @@ if page == "👥 Role Headcount":
             else:
                 st.error("Actual CSV must have columns: Role, Month, Actual")
 
-    # Merge Business Line for filtering
+    # Merge Business Line for filtering (using normalized join key)
     def attach_business_line(df):
-        return df.merge(st.session_state.role_business_lines, on="Role", how="left").fillna({"Business Line":"Other"})
+        work = df.copy()
+        work["__role_key"] = normalize_role_series(work["Role"])
+        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy()
+        out = work.merge(map_df, on="__role_key", how="left").drop(columns=["__role_key"])
+        out["Business Line"] = out["Business Line"].fillna("Other")
+        return out
+
     plan_g = attach_business_line(st.session_state.planned)
     act_g  = attach_business_line(st.session_state.actual)
 
@@ -268,12 +299,16 @@ if page == "👥 Role Headcount":
 if page == "📈 Ratios":
     st.title("📈 Ratios: Homes per Headcount (Actuals)")
     sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
+    BUSINESS_LINES = refresh_business_lines_list()
     sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
 
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
-    # Attach business line to actuals for filtering
-    act = st.session_state.actual.merge(st.session_state.role_business_lines, on="Role", how="left").fillna({"Business Line":"Other"})
+    # Attach business line to actuals for filtering (normalized)
+    act = st.session_state.actual.copy()
+    act["__role_key"] = normalize_role_series(act["Role"])
+    map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy()
+    act = act.merge(map_df, on="__role_key", how="left").drop(columns=["__role_key"]).fillna({"Business Line":"Other"})
     if sel_bline != "All":
         act = act.query("`Business Line` == @sel_bline")
 
