@@ -79,7 +79,7 @@ if "homes" not in st.session_state:
         ])
     st.session_state.homes = demo_df.copy()
 
-# Business Lines used for filters & section headers (replaces "Group"/"Department")
+# Business Lines used for filters & section headers
 if "role_business_lines" not in st.session_state:
     st.session_state.role_business_lines = pd.DataFrame({
         "Role": CANONICAL_ROLES,
@@ -115,6 +115,32 @@ if "planned" not in st.session_state:
     st.session_state.planned = blank_plan_actual("Planned")
 if "actual" not in st.session_state:
     st.session_state.actual = blank_plan_actual("Actual")
+
+# Helper: upsert Role→Business Line pairs from any uploaded df
+def upsert_business_lines_from_df(df: pd.DataFrame):
+    if "Role" not in df.columns or "Business Line" not in df.columns:
+        return
+    work = df[["Role","Business Line"]].copy()
+    work["Role"] = work["Role"].astype(str).str.strip()
+    work["Business Line"] = work["Business Line"].astype(str).str.strip()
+    work["__role_key"] = normalize_role_series(work["Role"])
+    work = work[work["Business Line"].ne("")]  # non-empty only
+    if work.empty:
+        return
+    # Existing map
+    map_df = st.session_state.role_business_lines
+    # Create dict of updates
+    upd = work.dropna(subset=["Business Line"]).drop_duplicates(subset=["__role_key"])
+    # Update existing rows
+    map_df = map_df.copy()
+    map_lookup = dict(zip(upd["__role_key"], upd["Business Line"]))
+    map_df["Business Line"] = map_df.apply(lambda r: map_lookup.get(r["__role_key"], r["Business Line"]), axis=1)
+    # Add missing keys
+    missing_keys = set(upd["__role_key"]) - set(map_df["__role_key"])
+    if missing_keys:
+        to_add = upd[upd["__role_key"].isin(missing_keys)][["Role","Business Line","__role_key"]].copy()
+        map_df = pd.concat([map_df, to_add], ignore_index=True)
+    st.session_state.role_business_lines = map_df
 
 # --- Navigation ---
 NAV = {
@@ -200,41 +226,54 @@ if page == "👥 Role Headcount":
         st.session_state.role_business_lines = st.data_editor(
             st.session_state.role_business_lines, num_rows="dynamic", use_container_width=True, key="edit_business_lines"
         )
-        st.caption("Tip: You can also upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
+        st.caption("Tip: Upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
         # keep normalized key up to date
         st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
 
     # Uploaders
     colu1, colu2 = st.columns(2)
     with colu1:
-        up_plan = st.file_uploader("📤 Upload Planned (Role, Month, Planned)", type=["csv"])
+        up_plan = st.file_uploader("📤 Upload Planned (Role, Month, Planned[, Business Line])", type=["csv"])
         if up_plan:
             df = pd.read_csv(up_plan)
             if set(["Role","Month","Planned"]).issubset(df.columns):
                 df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
-                st.session_state.planned = df[["Role","Month","Planned"]].copy()
+                st.session_state.planned = df[["Role","Month","Planned"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
+                # if a Business Line column was provided, upsert it into the mapping
+                if "Business Line" in df.columns:
+                    upsert_business_lines_from_df(df)
                 st.success("Planned loaded.")
             else:
                 st.error("Planned CSV must have columns: Role, Month, Planned")
     with colu2:
-        up_act = st.file_uploader("📤 Upload Actual (Role, Month, Actual)", type=["csv"])
+        up_act = st.file_uploader("📤 Upload Actual (Role, Month, Actual[, Business Line])", type=["csv"])
         if up_act:
             df = pd.read_csv(up_act)
             if set(["Role","Month","Actual"]).issubset(df.columns):
                 df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
-                st.session_state.actual = df[["Role","Month","Actual"]].copy()
+                st.session_state.actual = df[["Role","Month","Actual"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
+                # if a Business Line column was provided, upsert it into the mapping
+                if "Business Line" in df.columns:
+                    upsert_business_lines_from_df(df)
                 st.success("Actual loaded.")
             else:
                 st.error("Actual CSV must have columns: Role, Month, Actual")
 
-    # Merge Business Line for filtering (using normalized join key)
+    # Merge Business Line for filtering (prefer uploaded BL if present, else map)
     def attach_business_line(df):
         work = df.copy()
         work["__role_key"] = normalize_role_series(work["Role"])
-        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy()
-        out = work.merge(map_df, on="__role_key", how="left").drop(columns=["__role_key"])
-        out["Business Line"] = out["Business Line"].fillna("Other")
-        return out
+        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
+        work = work.merge(map_df, on="__role_key", how="left")
+        if "Business Line" in work.columns:
+            # prefer value from file; fill missing with map
+            work["Business Line"] = work["Business Line"].replace("", np.nan)
+            work["Business Line"] = work["Business Line"].fillna(work["BL_map"])
+        else:
+            work["Business Line"] = work["BL_map"]
+        work["Business Line"] = work["Business Line"].fillna("Other")
+        work = work.drop(columns=["__role_key","BL_map"])
+        return work
 
     plan_g = attach_business_line(st.session_state.planned)
     act_g  = attach_business_line(st.session_state.actual)
@@ -304,11 +343,17 @@ if page == "📈 Ratios":
 
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
-    # Attach business line to actuals for filtering (normalized)
+    # Attach business line to actuals for filtering (prefer uploaded BL)
     act = st.session_state.actual.copy()
     act["__role_key"] = normalize_role_series(act["Role"])
-    map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy()
-    act = act.merge(map_df, on="__role_key", how="left").drop(columns=["__role_key"]).fillna({"Business Line":"Other"})
+    map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
+    act = act.merge(map_df, on="__role_key", how="left")
+    if "Business Line" in act.columns:
+        act["Business Line"] = act["Business Line"].replace("", np.nan)
+        act["Business Line"] = act["Business Line"].fillna(act["BL_map"])
+    else:
+        act["Business Line"] = act["BL_map"]
+    act = act.drop(columns=["__role_key","BL_map"]).fillna({"Business Line":"Other"})
     if sel_bline != "All":
         act = act.query("`Business Line` == @sel_bline")
 
