@@ -93,6 +93,7 @@ def load_title_mapping():
     # 3) Fallback to seed
     return SEED_MAPPING.copy()
 
+
 def load_role_groups(canonical_roles):
     # 1) Prefer Business Line CSV role->group
     _, rg = load_mapping_from_business_line_csv()
@@ -102,24 +103,31 @@ def load_role_groups(canonical_roles):
         have = set(rg["Role"].tolist())
         missing = [r for r in canonical_roles if r not in have]
         if missing:
-            rg = pd.concat([rg, pd.DataFrame({"Role": missing, "Group": ["Other"]*len(missing)})], ignore_index=True)
+            rg = pd.concat(
+                [rg, pd.DataFrame({"Role": missing, "Group": ["Other"] * len(missing)})],
+                ignore_index=True,
+            )
         return rg
 
     # 2) Fallback: infer groups from role name keywords
     import pandas as pd
     rows = []
     for r in canonical_roles:
-        g = ("41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
-             "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
-             "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
-             "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
-             "41007 HOA & Compliance" if ("HOA" in r) else
-             "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
-             "41010 Portfolio Management" if ("Property Manager" in r) else
-             "41022 Sales Transition" if ("Asset" in r) else
-             "41016 OSM" if ("Onsite Manager" in r) else
-             "Other")
-        rows.append({"Role": r, "Group": g})
+        rows.append({
+            "Role": r,
+            "Group": (
+                "41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
+                "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
+                "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
+                "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
+                "41007 HOA & Compliance" if ("HOA" in r) else
+                "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
+                "41010 Portfolio Management" if ("Property Manager" in r) else
+                "41022 Sales Transition" if ("Asset" in r) else
+                "41016 OSM" if ("Onsite Manager" in r) else
+                "Other"
+            )
+        })
     return pd.DataFrame(rows)
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
