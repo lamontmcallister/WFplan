@@ -163,7 +163,6 @@ if "homes" not in st.session_state:
 # Role groups (Departments) used for filters & section headers
 if "role_groups" not in st.session_state:
     st.session_state.role_groups = load_role_groups(CANONICAL_ROLES)
-        "Role": CANONICAL_ROLES,
         "Group": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
                   "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
                   "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
