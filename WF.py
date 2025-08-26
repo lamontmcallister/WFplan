@@ -212,11 +212,11 @@ if page == "🗺️ Title Mapping":
             st.session_state.title_mapping.to_csv("title_mapping_saved.csv", index=False)
             st.success("Saved to title_mapping_saved.csv")
 
-
 # --- Role Headcount (Month + Business Line filters) ---
 if page == "👥 Role Headcount":
-    st.title("👥 Role Headcount — Planned vs Actual")
-    sel_months = st.multiselect("Months", ["All"] + MONTHS, default=["All"])
+    st.title("👥 Role Headcount — Annual (Planned vs Actual)")
+    sel_month = st.selectbox("Month", ["All"] + MONTHS, index=(MONTHS.index(CURRENT_MONTH)+1))
+    # refresh business lines list in case user edited the table
     BUSINESS_LINES = refresh_business_lines_list()
     sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
     st.caption("Variance = Planned − Actual (filtered by Business Line).")
@@ -227,7 +227,122 @@ if page == "👥 Role Headcount":
             st.session_state.role_business_lines, num_rows="dynamic", use_container_width=True, key="edit_business_lines"
         )
         st.caption("Tip: Upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
+        # keep normalized key up to date
         st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
+
+    # Uploaders
+    colu1, colu2 = st.columns(2)
+    with colu1:
+        up_plan = st.file_uploader("📤 Upload Planned (Role, Month, Planned[, Business Line])", type=["csv"])
+        if up_plan:
+            df = pd.read_csv(up_plan)
+            if set(["Role","Month","Planned"]).issubset(df.columns):
+                df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
+                st.session_state.planned = df[["Role","Month","Planned"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
+                # if a Business Line column was provided, upsert it into the mapping
+                if "Business Line" in df.columns:
+                    upsert_business_lines_from_df(df)
+                st.success("Planned loaded.")
+            else:
+                st.error("Planned CSV must have columns: Role, Month, Planned")
+    with colu2:
+        up_act = st.file_uploader("📤 Upload Actual (Role, Month, Actual[, Business Line])", type=["csv"])
+        if up_act:
+            df = pd.read_csv(up_act)
+            if set(["Role","Month","Actual"]).issubset(df.columns):
+                df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
+                st.session_state.actual = df[["Role","Month","Actual"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
+                # if a Business Line column was provided, upsert it into the mapping
+                if "Business Line" in df.columns:
+                    upsert_business_lines_from_df(df)
+                st.success("Actual loaded.")
+            else:
+                st.error("Actual CSV must have columns: Role, Month, Actual")
+
+    # Merge Business Line for filtering (prefer uploaded BL if present, else map)
+    def attach_business_line(df):
+        work = df.copy()
+        work["__role_key"] = normalize_role_series(work["Role"])
+        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
+        work = work.merge(map_df, on="__role_key", how="left")
+        if "Business Line" in work.columns:
+            # prefer value from file; fill missing with map
+            work["Business Line"] = work["Business Line"].replace("", np.nan)
+            work["Business Line"] = work["Business Line"].fillna(work["BL_map"])
+        else:
+            work["Business Line"] = work["BL_map"]
+        work["Business Line"] = work["Business Line"].fillna("Other")
+        work = work.drop(columns=["__role_key","BL_map"])
+        return work
+
+    plan_g = attach_business_line(st.session_state.planned)
+    act_g  = attach_business_line(st.session_state.actual)
+
+    if sel_bline != "All":
+        plan_g = plan_g.query("`Business Line` == @sel_bline")
+        act_g  = act_g .query("`Business Line` == @sel_bline")
+
+    # Pivot helpers
+    def to_wide(df, val):
+        if df.empty:
+            base = pd.DataFrame({"Business Line":[],"Role":[]})
+            for m in MONTHS: base[m] = []
+            return base
+        pvt = df.pivot_table(index=["Business Line","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
+        pvt = pvt.reset_index()
+        return pvt
+
+    wide_plan = to_wide(plan_g, "Planned")
+    wide_act  = to_wide(act_g , "Actual")
+
+    # If a specific month is chosen, collapse to single column
+    if sel_month != "All":
+        month_col_plan = ["Business Line","Role", sel_month]
+        month_col_act  = ["Business Line","Role", sel_month]
+        wide_plan = wide_plan[month_col_plan].rename(columns={sel_month:"Planned"})
+        wide_act  = wide_act [month_col_act ].rename(columns={sel_month:"Actual" })
+        wide_var  = wide_plan.merge(wide_act, on=["Business Line","Role"], how="outer").fillna(0)
+        wide_var["Variance"] = wide_var["Planned"].astype(int) - wide_var["Actual"].astype(int)
+
+        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
+        st.dataframe(wide_plan, use_container_width=True)
+        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
+        st.dataframe(wide_act, use_container_width=True)
+        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
+        st.dataframe(wide_var[["Business Line","Role","Variance"]], use_container_width=True)
+    else:
+        # Variance = Plan - Actual per month
+        wide_var = wide_plan.copy()
+        for m in MONTHS:
+            wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
+
+        def add_totals(df, label="Total HC"):
+            if df.empty: return df
+            out = []
+            for g, sub in df.groupby("Business Line", sort=False):
+                out.append(sub)
+                tot = {"Business Line": g, "Role": label}
+                for m in MONTHS:
+                    tot[m] = int(sub[m].sum())
+                out.append(pd.DataFrame([tot]))
+            return pd.concat(out, ignore_index=True)
+
+        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_plan), use_container_width=True)
+        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_act ), use_container_width=True)
+        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
+        st.dataframe(add_totals(wide_var), use_container_width=True)
+
+
+# --- Ratios (Month + Business Line filters) ---
+if page == "📈 Ratios":
+    st.title("📈 Ratios: Homes per Headcount (Planned vs Actual)")
+    sel_months = st.multiselect("Months", ["All"] + MONTHS, default=["All"])
+    BUSINESS_LINES = refresh_business_lines_list()
+    sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
+
+    total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
     # Merge Business Line for filtering
     def attach_business_line(df):
@@ -251,6 +366,7 @@ if page == "👥 Role Headcount":
         plan_g = plan_g.query("`Business Line` == @sel_bline")
         act_g  = act_g.query("`Business Line` == @sel_bline")
 
+    # Pivot helpers
     def to_wide(df, val, months):
         if df.empty:
             base = pd.DataFrame({"Business Line":[],"Role":[]})
@@ -260,6 +376,7 @@ if page == "👥 Role Headcount":
         pvt = pvt.reset_index()
         return pvt
 
+    # Determine months to display
     if "All" in sel_months:
         months_to_show = MONTHS
     else:
@@ -268,10 +385,17 @@ if page == "👥 Role Headcount":
     wide_plan = to_wide(plan_g, "Planned", months_to_show)
     wide_act  = to_wide(act_g , "Actual" , months_to_show)
 
-    # Variance
+    # Variance = Plan - Actual
     wide_var = wide_plan.copy()
     for m in months_to_show:
         wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
+
+    # Ratios: Homes per HC
+    wide_ratio_plan = wide_plan.copy()
+    wide_ratio_act  = wide_act.copy()
+    for m in months_to_show:
+        wide_ratio_plan[m] = wide_plan[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
+        wide_ratio_act[m]  = wide_act[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
 
     def add_totals(df, label="Total HC"):
         if df.empty: return df
@@ -293,43 +417,9 @@ if page == "👥 Role Headcount":
     st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
     st.dataframe(add_totals(wide_var), use_container_width=True)
 
-# --- Ratios (Month + Business Line filters) ---
-if page == "📈 Ratios":
-    st.title("📈 Ratios: Homes per Headcount (Actuals)")
-    sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
-    BUSINESS_LINES = refresh_business_lines_list()
-    sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
+    st.markdown('<div class="sectionhdr">Homes per Planned HC</div>', unsafe_allow_html=True)
+    st.dataframe(add_totals(wide_ratio_plan), use_container_width=True)
 
-    total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
+    st.markdown('<div class="sectionhdr">Homes per Actual HC</div>', unsafe_allow_html=True)
+    st.dataframe(add_totals(wide_ratio_act), use_container_width=True)
 
-    # Attach business line to actuals for filtering (prefer uploaded BL)
-    act = st.session_state.actual.copy()
-    act["__role_key"] = normalize_role_series(act["Role"])
-    map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
-    act = act.merge(map_df, on="__role_key", how="left")
-    if "Business Line" in act.columns:
-        act["Business Line"] = act["Business Line"].replace("", np.nan)
-        act["Business Line"] = act["Business Line"].fillna(act["BL_map"])
-    else:
-        act["Business Line"] = act["BL_map"]
-    act = act.drop(columns=["__role_key","BL_map"]).fillna({"Business Line":"Other"})
-    if sel_bline != "All":
-        act = act.query("`Business Line` == @sel_bline")
-
-    month_actuals = act.query("Month == @sel_month").copy()
-    role_sums = month_actuals.groupby("Role", as_index=False)["Actual"].sum()
-
-    rows = []
-    for _, r in role_sums.iterrows():
-        role = r["Role"]; hc = int(r["Actual"])
-        ratio = (total_homes / hc) if hc > 0 else None
-        rows.append({"Role": role, "Actual HC": hc, "Homes per HC": (round(ratio,2) if ratio else "⚠️ No coverage")})
-    df_rat = pd.DataFrame(rows)
-    st.dataframe(df_rat, use_container_width=True)
-
-    total_hc = int(role_sums["Actual"].sum()) if not role_sums.empty else 0
-    total_ratio = (total_homes / total_hc) if total_hc > 0 else None
-    if total_ratio:
-        st.markdown(f"### 📊 Total: {total_homes:,} Homes / {total_hc:,} Staff = **{total_ratio:.2f} Homes per Headcount**")
-    else:
-        st.warning("⚠️ Not enough staffing to calculate total ratio.")
