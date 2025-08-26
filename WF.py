@@ -337,7 +337,7 @@ if page == "👥 Role Headcount":
 
 # --- Ratios (Month + Business Line filters) ---
 if page == "📈 Ratios":
-    st.title("📈 Ratios: Homes per Headcount (Planned vs Actual)")
+    st.title("📈 Ratios: Homes per Headcount")
     sel_months = st.multiselect("Months", ["All"] + MONTHS, default=["All"])
     BUSINESS_LINES = refresh_business_lines_list()
     sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
@@ -390,12 +390,14 @@ if page == "📈 Ratios":
     for m in months_to_show:
         wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
 
-    # Ratios: Homes per HC
+    # Ratios
     wide_ratio_plan = wide_plan.copy()
     wide_ratio_act  = wide_act.copy()
+    wide_ratio_var  = wide_var.copy()
     for m in months_to_show:
         wide_ratio_plan[m] = wide_plan[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
         wide_ratio_act[m]  = wide_act[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
+        wide_ratio_var[m]  = wide_var[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
 
     def add_totals(df, label="Total HC"):
         if df.empty: return df
@@ -408,18 +410,12 @@ if page == "📈 Ratios":
             out.append(pd.DataFrame([tot]))
         return pd.concat(out, ignore_index=True)
 
-    st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_plan), use_container_width=True)
-
-    st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_act), use_container_width=True)
-
-    st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_var), use_container_width=True)
-
-    st.markdown('<div class="sectionhdr">Homes per Planned HC</div>', unsafe_allow_html=True)
+    st.markdown('<div class="bluehdr">Homes per Planned HC</div>', unsafe_allow_html=True)
     st.dataframe(add_totals(wide_ratio_plan), use_container_width=True)
 
     st.markdown('<div class="sectionhdr">Homes per Actual HC</div>', unsafe_allow_html=True)
     st.dataframe(add_totals(wide_ratio_act), use_container_width=True)
+
+    st.markdown('<div class="sectionhdr">Homes per Variance in HC</div>', unsafe_allow_html=True)
+    st.dataframe(add_totals(wide_ratio_var), use_container_width=True)
 
