@@ -336,10 +336,11 @@ if page == "👥 Role Headcount":
 
 
 
+
 # --- Ratios (Month + Business Line filters) ---
 if page == "📈 Ratios":
     st.title("📈 Ratios: Homes per Headcount (Planned vs Actual)")
-    sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
+    sel_months = st.multiselect("Months", MONTHS, default=[CURRENT_MONTH])
     BUSINESS_LINES = refresh_business_lines_list()
     sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
 
@@ -362,56 +363,54 @@ if page == "📈 Ratios":
     plan = attach_bl(st.session_state.planned, "Planned")
     act  = attach_bl(st.session_state.actual , "Actual")
 
-    # Filter by BL + Month
-    plan_m = plan.query("Month == @sel_month").copy()
-    act_m  = act.query("Month == @sel_month").copy()
+    # Filter BL if needed
     if sel_bline != "All":
-        plan_m = plan_m.query("`Business Line` == @sel_bline")
-        act_m  = act_m .query("`Business Line` == @sel_bline")
+        plan = plan.query("`Business Line` == @sel_bline")
+        act  = act.query("`Business Line` == @sel_bline")
 
-    # Merge
-    merged = plan_m.merge(act_m, on=["Role","Month","Business Line"], how="outer").fillna(0)
-    merged["Planned"] = merged["Planned"].astype(int)
-    merged["Actual"] = merged["Actual"].astype(int)
-    merged["Variance"] = merged["Planned"] - merged["Actual"]
-
-    # Calculate Ratios
     def safe_ratio(homes, hc):
         return round(homes / hc,2) if hc > 0 else None
-    merged["Planned Ratio"] = merged["Planned"].apply(lambda x: safe_ratio(total_homes,x))
-    merged["Actual Ratio"]  = merged["Actual"].apply(lambda x: safe_ratio(total_homes,x))
 
-    # Totals per Business Line
-    totals = []
-    for g, sub in merged.groupby("Business Line", sort=False):
-        tot = {
-            "Business Line": g, "Role": "Total HC",
-            "Planned": int(sub["Planned"].sum()),
-            "Actual": int(sub["Actual"].sum()),
-            "Variance": int(sub["Planned"].sum() - sub["Actual"].sum())
-        }
-        tot["Planned Ratio"] = safe_ratio(total_homes, tot["Planned"])
-        tot["Actual Ratio"]  = safe_ratio(total_homes, tot["Actual"])
-        totals.append(pd.DataFrame([tot]))
-    merged = pd.concat([merged] + totals, ignore_index=True)
+    for m in sel_months:
+        st.subheader(f"📅 {m}")
+        plan_m = plan.query("Month == @m").copy()
+        act_m  = act.query("Month == @m").copy()
+        merged = plan_m.merge(act_m, on=["Role","Month","Business Line"], how="outer").fillna(0)
+        merged["Planned"] = merged["Planned"].astype(int)
+        merged["Actual"]  = merged["Actual"].astype(int)
+        merged["Variance"] = merged["Planned"] - merged["Actual"]
+        merged["Planned Ratio"] = merged["Planned"].apply(lambda x: safe_ratio(total_homes,x))
+        merged["Actual Ratio"]  = merged["Actual"].apply(lambda x: safe_ratio(total_homes,x))
 
-    # Show Plan (F1)
-    st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-    st.dataframe(merged[["Business Line","Role","Planned","Planned Ratio"]], use_container_width=True)
+        # Totals per Business Line
+        totals = []
+        for g, sub in merged.groupby("Business Line", sort=False):
+            tot = {
+                "Business Line": g, "Role": "Total HC",
+                "Planned": int(sub["Planned"].sum()),
+                "Actual": int(sub["Actual"].sum()),
+                "Variance": int(sub["Planned"].sum() - sub["Actual"].sum())
+            }
+            tot["Planned Ratio"] = safe_ratio(total_homes, tot["Planned"])
+            tot["Actual Ratio"]  = safe_ratio(total_homes, tot["Actual"])
+            totals.append(pd.DataFrame([tot]))
+        merged = pd.concat([merged] + totals, ignore_index=True)
 
-    # Show Actuals
-    st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-    st.dataframe(merged[["Business Line","Role","Actual","Actual Ratio"]], use_container_width=True)
+        # Show stacked sections
+        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
+        st.dataframe(merged[["Business Line","Role","Planned","Planned Ratio"]], use_container_width=True)
 
-    # Show Variance
-    st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-    st.dataframe(merged[["Business Line","Role","Variance"]], use_container_width=True)
+        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
+        st.dataframe(merged[["Business Line","Role","Actual","Actual Ratio"]], use_container_width=True)
 
-    # Totals (all BL combined)
-    tot_plan = merged.loc[merged["Role"]=="Total HC","Planned"].sum()
-    tot_act  = merged.loc[merged["Role"]=="Total HC","Actual"].sum()
-    if tot_plan > 0:
-        st.write(f"📊 **Total Planned**: {total_homes:,} Homes / {tot_plan:,} Staff = {safe_ratio(total_homes,tot_plan)} Homes per HC")
-    if tot_act > 0:
-        st.write(f"📊 **Total Actual**: {total_homes:,} Homes / {tot_act:,} Staff = {safe_ratio(total_homes,tot_act)} Homes per HC")
+        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
+        st.dataframe(merged[["Business Line","Role","Variance"]], use_container_width=True)
+
+        # Totals (all BL combined)
+        tot_plan = merged.loc[merged["Role"]=="Total HC","Planned"].sum()
+        tot_act  = merged.loc[merged["Role"]=="Total HC","Actual"].sum()
+        if tot_plan > 0:
+            st.write(f"📊 **{m} Planned**: {total_homes:,} Homes / {tot_plan:,} Staff = {safe_ratio(total_homes,tot_plan)} Homes per HC")
+        if tot_act > 0:
+            st.write(f"📊 **{m} Actual**: {total_homes:,} Homes / {tot_act:,} Staff = {safe_ratio(total_homes,tot_act)} Homes per HC")
 
