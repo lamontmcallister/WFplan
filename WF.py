@@ -335,9 +335,10 @@ if page == "👥 Role Headcount":
         st.dataframe(add_totals(wide_var), use_container_width=True)
 
 
+
 # --- Ratios (Month + Business Line filters) ---
 if page == "📈 Ratios":
-    st.title("📈 Ratios: Homes per Headcount (Plan vs Actual)")
+    st.title("📈 Ratios: Homes per Headcount (Planned vs Actual)")
     sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
     BUSINESS_LINES = refresh_business_lines_list()
     sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
@@ -394,13 +395,15 @@ if page == "📈 Ratios":
         totals.append(pd.DataFrame([tot]))
     merged = pd.concat([merged] + totals, ignore_index=True)
 
-    # Show tables
-    st.markdown('<div class="bluehdr">Planned HC</div>', unsafe_allow_html=True)
+    # Show Plan (F1)
+    st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
     st.dataframe(merged[["Business Line","Role","Planned","Planned Ratio"]], use_container_width=True)
 
-    st.markdown('<div class="sectionhdr">Actual HC</div>', unsafe_allow_html=True)
+    # Show Actuals
+    st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
     st.dataframe(merged[["Business Line","Role","Actual","Actual Ratio"]], use_container_width=True)
 
+    # Show Variance
     st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
     st.dataframe(merged[["Business Line","Role","Variance"]], use_container_width=True)
 
