@@ -334,43 +334,81 @@ if page == "👥 Role Headcount":
         st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
         st.dataframe(add_totals(wide_var), use_container_width=True)
 
+
 # --- Ratios (Month + Business Line filters) ---
 if page == "📈 Ratios":
-    st.title("📈 Ratios: Homes per Headcount (Actuals)")
+    st.title("📈 Ratios: Homes per Headcount (Plan vs Actual)")
     sel_month = st.selectbox("Month", MONTHS, index=MONTHS.index(CURRENT_MONTH))
     BUSINESS_LINES = refresh_business_lines_list()
     sel_bline  = st.selectbox("Business Line", BUSINESS_LINES, index=0)
 
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
 
-    # Attach business line to actuals for filtering (prefer uploaded BL)
-    act = st.session_state.actual.copy()
-    act["__role_key"] = normalize_role_series(act["Role"])
-    map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
-    act = act.merge(map_df, on="__role_key", how="left")
-    if "Business Line" in act.columns:
-        act["Business Line"] = act["Business Line"].replace("", np.nan)
-        act["Business Line"] = act["Business Line"].fillna(act["BL_map"])
-    else:
-        act["Business Line"] = act["BL_map"]
-    act = act.drop(columns=["__role_key","BL_map"]).fillna({"Business Line":"Other"})
+    # Attach business line helper
+    def attach_bl(df, valname):
+        work = df.copy()
+        work["__role_key"] = normalize_role_series(work["Role"])
+        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
+        work = work.merge(map_df, on="__role_key", how="left")
+        if "Business Line" in work.columns:
+            work["Business Line"] = work["Business Line"].replace("", np.nan)
+            work["Business Line"] = work["Business Line"].fillna(work["BL_map"])
+        else:
+            work["Business Line"] = work["BL_map"]
+        work = work.drop(columns=["__role_key","BL_map"]).fillna({"Business Line":"Other"})
+        return work[["Role","Month",valname,"Business Line"]]
+
+    plan = attach_bl(st.session_state.planned, "Planned")
+    act  = attach_bl(st.session_state.actual , "Actual")
+
+    # Filter by BL + Month
+    plan_m = plan.query("Month == @sel_month").copy()
+    act_m  = act.query("Month == @sel_month").copy()
     if sel_bline != "All":
-        act = act.query("`Business Line` == @sel_bline")
+        plan_m = plan_m.query("`Business Line` == @sel_bline")
+        act_m  = act_m .query("`Business Line` == @sel_bline")
 
-    month_actuals = act.query("Month == @sel_month").copy()
-    role_sums = month_actuals.groupby("Role", as_index=False)["Actual"].sum()
+    # Merge
+    merged = plan_m.merge(act_m, on=["Role","Month","Business Line"], how="outer").fillna(0)
+    merged["Planned"] = merged["Planned"].astype(int)
+    merged["Actual"] = merged["Actual"].astype(int)
+    merged["Variance"] = merged["Planned"] - merged["Actual"]
 
-    rows = []
-    for _, r in role_sums.iterrows():
-        role = r["Role"]; hc = int(r["Actual"])
-        ratio = (total_homes / hc) if hc > 0 else None
-        rows.append({"Role": role, "Actual HC": hc, "Homes per HC": (round(ratio,2) if ratio else "⚠️ No coverage")})
-    df_rat = pd.DataFrame(rows)
-    st.dataframe(df_rat, use_container_width=True)
+    # Calculate Ratios
+    def safe_ratio(homes, hc):
+        return round(homes / hc,2) if hc > 0 else None
+    merged["Planned Ratio"] = merged["Planned"].apply(lambda x: safe_ratio(total_homes,x))
+    merged["Actual Ratio"]  = merged["Actual"].apply(lambda x: safe_ratio(total_homes,x))
 
-    total_hc = int(role_sums["Actual"].sum()) if not role_sums.empty else 0
-    total_ratio = (total_homes / total_hc) if total_hc > 0 else None
-    if total_ratio:
-        st.markdown(f"### 📊 Total: {total_homes:,} Homes / {total_hc:,} Staff = **{total_ratio:.2f} Homes per Headcount**")
-    else:
-        st.warning("⚠️ Not enough staffing to calculate total ratio.")
+    # Totals per Business Line
+    totals = []
+    for g, sub in merged.groupby("Business Line", sort=False):
+        tot = {
+            "Business Line": g, "Role": "Total HC",
+            "Planned": int(sub["Planned"].sum()),
+            "Actual": int(sub["Actual"].sum()),
+            "Variance": int(sub["Planned"].sum() - sub["Actual"].sum())
+        }
+        tot["Planned Ratio"] = safe_ratio(total_homes, tot["Planned"])
+        tot["Actual Ratio"]  = safe_ratio(total_homes, tot["Actual"])
+        totals.append(pd.DataFrame([tot]))
+    merged = pd.concat([merged] + totals, ignore_index=True)
+
+    # Show tables
+    st.markdown('<div class="bluehdr">Planned HC</div>', unsafe_allow_html=True)
+    st.dataframe(merged[["Business Line","Role","Planned","Planned Ratio"]], use_container_width=True)
+
+    st.markdown('<div class="sectionhdr">Actual HC</div>', unsafe_allow_html=True)
+    st.dataframe(merged[["Business Line","Role","Actual","Actual Ratio"]], use_container_width=True)
+
+    st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
+    st.dataframe(merged[["Business Line","Role","Variance"]], use_container_width=True)
+
+    # Totals (all BL combined)
+    tot_plan = merged.loc[merged["Role"]=="Total HC","Planned"].sum()
+    tot_act  = merged.loc[merged["Role"]=="Total HC","Actual"].sum()
+    if tot_plan > 0:
+        st.write(f"📊 **Total Planned**: {total_homes:,} Homes / {tot_plan:,} Staff = {safe_ratio(total_homes,tot_plan)} Homes per HC")
+    if tot_act > 0:
+        st.write(f"📊 **Total Actual**: {total_homes:,} Homes / {tot_act:,} Staff = {safe_ratio(total_homes,tot_act)} Homes per HC")
+
