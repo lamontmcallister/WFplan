@@ -78,7 +78,7 @@ page = st.sidebar.radio("Go to", list(NAV.keys()) + sum(NAV.values(), []))
 
 # --- Overview ---
 if page == "🏠 Overview":
-    st.title("Roostock Property Ops Dashboard")
+    st.title("Property Ops Dashboard")
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
     m = CURRENT_MONTH
     total_actual = int(st.session_state.actual.query("Month == @m")["Actual"].sum()) if not st.session_state.actual.empty else 0
