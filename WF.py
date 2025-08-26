@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
-import re
 
 st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
 
@@ -42,19 +41,20 @@ def load_mapping():
 # --- Normalize wide/long format Planned/Actual uploads ---
 def normalize_plan_actual_upload(df, type_col):
     month_cols = [c for c in df.columns if c in MONTHS]
-    if month_cols:
+    if month_cols:  # wide format
         id_vars = [c for c in df.columns if c not in MONTHS]
-        df_long = df.melt(id_vars=id_vars,
-                          value_vars=month_cols,
-                          var_name="Month",
-                          value_name=type_col)
+        df_long = df.melt(
+            id_vars=id_vars,
+            value_vars=month_cols,
+            var_name="Month",
+            value_name=type_col
+        )
         keep_cols = ["Role","Month",type_col]
         if "Business Line" in df_long.columns:
             keep_cols.insert(0,"Business Line")
-        df_long = df_long[keep_cols]
+        return df_long[keep_cols]
     else:
-        df_long = df.copy()
-    return df_long
+        return df
 
 # --- Session state init ---
 if "title_mapping" not in st.session_state:
@@ -78,7 +78,7 @@ page = st.sidebar.radio("Go to", list(NAV.keys()) + sum(NAV.values(), []))
 
 # --- Overview ---
 if page == "🏠 Overview":
-    st.title("Property Ops Dashboard")
+    st.title("Roostock Property Ops Dashboard")
     total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
     m = CURRENT_MONTH
     total_actual = int(st.session_state.actual.query("Month == @m")["Actual"].sum()) if not st.session_state.actual.empty else 0
@@ -146,23 +146,23 @@ if page == "👥 Role Headcount":
 
     colu1, colu2 = st.columns(2)
     with colu1:
-        up_plan = st.file_uploader("📤 Upload Planned (wide or long format)", type=["csv"], key="up_plan")
+        up_plan = st.file_uploader("📤 Upload Planned (wide or long)", type=["csv"], key="up_plan")
         if up_plan:
             df = pd.read_csv(up_plan)
             if "Role" in df.columns:
                 st.session_state.planned = normalize_plan_actual_upload(df,"Planned")
                 st.success("Planned loaded.")
             else:
-                st.error("Planned CSV must include Role + months.")
+                st.error("Planned CSV must have Role column.")
     with colu2:
-        up_act = st.file_uploader("📤 Upload Actual (wide or long format)", type=["csv"], key="up_act")
+        up_act = st.file_uploader("📤 Upload Actual (wide or long)", type=["csv"], key="up_act")
         if up_act:
             df = pd.read_csv(up_act)
             if "Role" in df.columns:
                 st.session_state.actual = normalize_plan_actual_upload(df,"Actual")
                 st.success("Actual loaded.")
             else:
-                st.error("Actual CSV must include Role + months.")
+                st.error("Actual CSV must have Role column.")
 
     plan = st.session_state.planned
     act = st.session_state.actual
