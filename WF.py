@@ -1,421 +1,184 @@
+
 import streamlit as st
 import pandas as pd
-import numpy as np
-from datetime import datetime
-import os
-import re
+import plotly.express as px
 
-st.set_page_config(page_title="Roostock Property Ops Dashboard", layout="wide")
+st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
-# --- Styles ---
-st.markdown("""
-<style>
-    body { background:#1e1e1e !important; color:#fff !important; }
-    .stDataFrame, .stNumberInput input, .stTextInput input, .stSelectbox, .stMultiSelect { background:#333 !important; color:#fff !important; }
-    .stButton > button { background:#ff4b2b; color:white; }
-    .stButton > button:hover { background:#ff6b4b; }
-    .bluehdr { background:#0b5ed7; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 6px 0;}
-    .sectionhdr { background:#444; color:#fff; padding:6px 10px; border-radius:6px; display:inline-block; margin: 10px 0;}
-</style>
-""", unsafe_allow_html=True)
+# --------------- Load or initialize data ----------------
+if "headcount_data" not in st.session_state:
+    headcount_data = {
+        "Allocation": [
+            "Business", "Business", "Business", "Business", "Business", "Business", "Business", "Business", "Business",
+            "Business", "Business", "Business", "Business", "Business", "Core R&D", "Core R&D", "Core R&D", "Core R&D",
+            "Core R&D", "Core R&D", "Core R&D", "Machine Learning"
+        ],
+        "Sub-Dept": [
+            "CS", "Customer Success & Solutions", "Marketing", "ProServ", "Sales", "Accounting", "Biz Ops & Prog Mgmt",
+            "Finance", "Legal", "Ops & Admin", "Employee Experience", "People Operations", "Recruiting", "Workplace",
+            "Allos", "COGS ops", "Eng", "G&A Biz sys", "Prod", "R&D biz sys", "Sales Biz sys", "Machine Learning"
+        ],
+        "Employees in seat": [115, 46, 82, 9, 175, 29, 6, 13, 7, 2, 16, 5, 27, 8, 12, 20, 204, 7, 89, 17, 7, 32],
+        "Future Starts": [6, 13, 8, 3, 5, 3, 0, 7, 0, 0, 0, 0, 4, 1, 1, 1, 19, 1, 4, 0, 0, 1],
+        "FY26 Planned + Open": [7, 17, 2, 0, 26, 1, 0, 0, 2, 2, 0, 0, 1, 0, 0, 6, 57, 3, 18, 1, 4, 0],
+        "FY26 Planned - not yet opened": [4, 16, 40, 10, 18, 3, 1, 2, 0, 1, 1, 0, 2, 1, 0, 2, 15, 0, 6, 6, 1, 0]
+    }
+    df_headcount = pd.DataFrame(headcount_data)
+    df_headcount["Total Headcount"] = df_headcount[
+        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+    ].sum(axis=1)
+    st.session_state.headcount_data = df_headcount
+    st.session_state.original_headcount = df_headcount.copy()
 
-MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-CURRENT_MONTH = MONTHS[datetime.now().month-1]
+df_headcount = st.session_state.headcount_data
+df_headcount["Total Headcount"] = df_headcount[
+    ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+].sum(axis=1)
 
-# --- Seed mapping (trim, editable later) ---
-SEED_MAPPING = pd.DataFrame({
-    "HRIS Title": ["Leasing Associate","Team Lead, Leasing","Lease Marketing Associate","Manager, Leasing","Contact Center Associate","Field Dispatcher",
-                   "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
-                   "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
-                   "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"],
-    "Mapped Role": ["Leasing Associate","Team Lead, Leasing","Lease Marketing","Manager, Leasing","Contact Center Associate","Field Dispatcher",
-                    "Maintenance Project Coordinator","Maintenance Manager","Service Technician","Regional Service Manager",
-                    "Property Accountant","Accounts Payable","HOA","Property Administration","Utilities",
-                    "Renovation Project Coordinator","Construction Specialist","RXM","Property Manager","Asset Manager","Underwriting","Onsite Manager","Porter"]
-})
+df_allocation_summary = df_headcount.groupby("Allocation").sum(numeric_only=True).reset_index()
+default_attrition_rates = {allocation: 0.10 for allocation in df_allocation_summary["Allocation"].unique()}
+df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+    lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+    axis=1
+)
+df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-CANONICAL_ROLES = sorted(SEED_MAPPING["Mapped Role"].unique().tolist())
+# --------------- Sidebar Navigation ----------------
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Headcount Adjustments", "Adjusted Hiring Goals", "Recruiter Capacity Model", "Finance Overview"])
 
-def load_mapping():
-    if os.path.exists("title_mapping_saved.csv"):
-        try:
-            m = pd.read_csv("title_mapping_saved.csv")
-            if set(["HRIS Title","Mapped Role"]).issubset(m.columns):
-                return m[["HRIS Title","Mapped Role"]].copy()
-        except Exception:
-            pass
-    return SEED_MAPPING.copy()
+# --------------- Page 1: Headcount Adjustments ----------------
+if page == "Headcount Adjustments":
+    st.title("📊 Headcount Adjustments")
+    st.markdown("Adjust headcount inputs across departments. Totals update in real time.")
+    edited_df = st.data_editor(df_headcount, num_rows="dynamic")
+    edited_df["Total Headcount"] = edited_df[
+        ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
+    ].sum(axis=1)
+    st.session_state.headcount_data = edited_df
 
-# --- Role normalizer to align variants like "1. Service Technician" with "Service Technician" ---
-def normalize_role_series(s: pd.Series) -> pd.Series:
-    def _norm(x):
-        if pd.isna(x):
-            return x
-        x = str(x)
-        x = x.strip()
-        # drop leading numbering/bullets: "1. ", "01) ", "2 - ", etc.
-        x = re.sub(r"^\s*\d+\s*[\.\)\-\–:\s]+\s*", "", x)
-        # collapse multiple spaces
-        x = re.sub(r"\s+", " ", x)
-        return x.lower()
-    return s.map(_norm)
-
-# --- Session state init ---
-if "title_mapping" not in st.session_state:
-    st.session_state.title_mapping = load_mapping()
-
-# Homes: ensure demo data exists (total ~19,300) even if CSV missing
-if "homes" not in st.session_state:
-    demo_df = None
-    if os.path.exists("demo_homes_data.csv"):
-        try:
-            demo_df = pd.read_csv("demo_homes_data.csv")[["Property Type","Units"]]
-        except Exception:
-            demo_df = None
-    if demo_df is None or demo_df.empty:
-        demo_df = pd.DataFrame([
-            {"Property Type":"Single-Family Rental","Units":15000},
-            {"Property Type":"Short Term Rental","Units":4300},
-        ])
-    st.session_state.homes = demo_df.copy()
-
-# Business Lines used for filters & section headers
-if "role_business_lines" not in st.session_state:
-    st.session_state.role_business_lines = pd.DataFrame({
-        "Role": CANONICAL_ROLES,
-        "Business Line": ["41011 Maintenance Techs" if ("Technician" in r or "Maintenance" in r or "Service" in r) else
-                          "41021 Leasing" if ("Leasing" in r or "Lease Marketing" in r) else
-                          "41013 Resident Services" if ("RXM" in r or "Resident" in r) else
-                          "41003 PM Accounting" if ("Accountant" in r or "Accounts Payable" in r) else
-                          "41007 HOA & Compliance" if ("HOA" in r) else
-                          "41012 Turn Management" if ("Renovation" in r or "Construction" in r) else
-                          "41010 Portfolio Management" if ("Property Manager" in r) else
-                          "41022 Sales Transition" if ("Asset" in r) else
-                          "41016 OSM" if ("Onsite Manager" in r) else
-                          "Other"
-                         for r in CANONICAL_ROLES]
-    })
-
-# maintain a normalized join key inside session for robust merges
-st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
-
-def refresh_business_lines_list():
-    return ["All"] + sorted(st.session_state.role_business_lines["Business Line"].unique().tolist())
-
-BUSINESS_LINES = refresh_business_lines_list()
-
-def blank_plan_actual(colname):
-    rows = []
-    for role in CANONICAL_ROLES:
-        for m in MONTHS:
-            rows.append({"Role": role, "Month": m, colname: 0})
-    return pd.DataFrame(rows)
-
-if "planned" not in st.session_state:
-    st.session_state.planned = blank_plan_actual("Planned")
-if "actual" not in st.session_state:
-    st.session_state.actual = blank_plan_actual("Actual")
-
-# Helper: upsert Role→Business Line pairs from any uploaded df
-def upsert_business_lines_from_df(df: pd.DataFrame):
-    if "Role" not in df.columns or "Business Line" not in df.columns:
-        return
-    work = df[["Role","Business Line"]].copy()
-    work["Role"] = work["Role"].astype(str).str.strip()
-    work["Business Line"] = work["Business Line"].astype(str).str.strip()
-    work["__role_key"] = normalize_role_series(work["Role"])
-    work = work[work["Business Line"].ne("")]  # non-empty only
-    if work.empty:
-        return
-    # Existing map
-    map_df = st.session_state.role_business_lines
-    # Create dict of updates
-    upd = work.dropna(subset=["Business Line"]).drop_duplicates(subset=["__role_key"])
-    # Update existing rows
-    map_df = map_df.copy()
-    map_lookup = dict(zip(upd["__role_key"], upd["Business Line"]))
-    map_df["Business Line"] = map_df.apply(lambda r: map_lookup.get(r["__role_key"], r["Business Line"]), axis=1)
-    # Add missing keys
-    missing_keys = set(upd["__role_key"]) - set(map_df["__role_key"])
-    if missing_keys:
-        to_add = upd[upd["__role_key"].isin(missing_keys)][["Role","Business Line","__role_key"]].copy()
-        map_df = pd.concat([map_df, to_add], ignore_index=True)
-    st.session_state.role_business_lines = map_df
-
-# --- Navigation ---
-NAV = {
-    "🏠 Overview": [],
-    "🏘️ Homes Under Management": ["👥 Role Headcount", "🗺️ Title Mapping", "📈 Ratios"]
-}
-page = st.sidebar.radio("Go to", list(NAV.keys()) + sum(NAV.values(), []))
-
-# --- Overview ---
-if page == "🏠 Overview":
-    st.title("Roostock Property Ops Dashboard")
-    total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
-    m = CURRENT_MONTH
-    total_actual = int(st.session_state.actual.query("Month == @m")["Actual"].sum())
-    col1, col2 = st.columns(2)
-    col1.metric("🏘️ Total Homes (all types)", f"{total_homes:,}")
-    col2.metric(f"👥 Actual HC ({m})", f"{total_actual:,}")
-    st.caption("Ratios use **Actuals** for the selected month in the Ratios tab.")
-
-# --- Homes Under Management ---
-if page == "🏘️ Homes Under Management":
-    st.title("🏘️ Homes Under Management")
-    st.caption("Columns: Property Type, Units. Upload to replace or add/delete inline.")
-    st.dataframe(st.session_state.homes, use_container_width=True)
-    if not st.session_state.homes.empty:
-        idx_to_del = st.number_input("Row index to delete", min_value=0, max_value=len(st.session_state.homes)-1, step=1)
-        if st.button("Delete Home"):
-            st.session_state.homes.drop(index=idx_to_del, inplace=True)
-            st.session_state.homes.reset_index(drop=True, inplace=True)
-            st.success("Deleted.")
-    with st.expander("➕ Add Home"):
-        col1, col2 = st.columns(2)
-        with col1:
-            ptype = st.selectbox("Property Type", ["Single-Family Rental","Short Term Rental"])
-        with col2:
-            units = st.number_input("Units", min_value=1, step=1)
-        if st.button("Add"):
-            st.session_state.homes = pd.concat([st.session_state.homes, pd.DataFrame([{"Property Type": ptype, "Units": int(units)}])], ignore_index=True)
-            st.success("Home added.")
-    up = st.file_uploader("📤 Upload CSV to REPLACE homes", type=["csv"])
-    if up:
-        df = pd.read_csv(up)
-        needed = ["Property Type","Units"]
-        if all(c in df.columns for c in needed):
-            st.session_state.homes = df[needed].copy()
-            st.success("Homes replaced.")
-        else:
-            st.error("CSV must include columns: Property Type, Units")
-
-# --- Title Mapping ---
-if page == "🗺️ Title Mapping":
-    st.title("🗺️ Title Mapping (HRIS → Reporting Roles)")
-    up_map = st.file_uploader("📤 Upload Mapping CSV (HRIS Title, Mapped Role)", type=["csv"])
-    if up_map:
-        df = pd.read_csv(up_map)
-        if set(["HRIS Title","Mapped Role"]).issubset(df.columns):
-            st.session_state.title_mapping = df[["HRIS Title","Mapped Role"]].copy()
-            st.success("Mapping loaded.")
-        else:
-            st.error("CSV must include columns: HRIS Title, Mapped Role")
-    st.session_state.title_mapping = st.data_editor(
-        st.session_state.title_mapping, num_rows="dynamic", use_container_width=True, key="edit_mapping"
+    df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * default_attrition_rates[row["Allocation"]],
+        axis=1
     )
-    colm1, colm2 = st.columns(2)
-    with colm1:
-        st.download_button("⬇️ Download Current Mapping", st.session_state.title_mapping.to_csv(index=False), "title_mapping.csv")
-    with colm2:
-        if st.button("💾 Save Mapping to CSV"):
-            st.session_state.title_mapping.to_csv("title_mapping_saved.csv", index=False)
-            st.success("Saved to title_mapping_saved.csv")
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-# --- Role Headcount (Month + Business Line filters) ---
-if page == "👥 Role Headcount":
-    st.title("👥 Role Headcount — Annual (Planned vs Actual)")
-    sel_month = st.selectbox("Month", ["All"] + MONTHS, index=(MONTHS.index(CURRENT_MONTH)+1))
-    # refresh business lines list in case user edited the table
-    BUSINESS_LINES = refresh_business_lines_list()
-    sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
-    st.caption("Variance = Planned − Actual (filtered by Business Line).")
+    st.subheader("📌 Summary by Allocation")
+    st.dataframe(df_allocation_summary)
 
-    # Editable Business Lines
-    with st.expander("🗂️ Edit Business Lines (Role → Business Line)"):
-        st.session_state.role_business_lines = st.data_editor(
-            st.session_state.role_business_lines, num_rows="dynamic", use_container_width=True, key="edit_business_lines"
-        )
-        st.caption("Tip: Upload a CSV with columns: Role, Business Line from the three-dot menu in the editor.")
-        # keep normalized key up to date
-        st.session_state.role_business_lines["__role_key"] = normalize_role_series(st.session_state.role_business_lines["Role"])
+    st.subheader("📈 Total Headcount by Allocation (Bar Chart)")
+    chart = px.bar(df_allocation_summary, x="Allocation", y="Total Headcount", color="Allocation", title="Total Headcount by Allocation")
+    st.plotly_chart(chart)
 
-    # Uploaders
-    colu1, colu2 = st.columns(2)
-    with colu1:
-        up_plan = st.file_uploader("📤 Upload Planned (Role, Month, Planned[, Business Line])", type=["csv"])
-        if up_plan:
-            df = pd.read_csv(up_plan)
-            if set(["Role","Month","Planned"]).issubset(df.columns):
-                df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
-                st.session_state.planned = df[["Role","Month","Planned"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
-                # if a Business Line column was provided, upsert it into the mapping
-                if "Business Line" in df.columns:
-                    upsert_business_lines_from_df(df)
-                st.success("Planned loaded.")
-            else:
-                st.error("Planned CSV must have columns: Role, Month, Planned")
-    with colu2:
-        up_act = st.file_uploader("📤 Upload Actual (Role, Month, Actual[, Business Line])", type=["csv"])
-        if up_act:
-            df = pd.read_csv(up_act)
-            if set(["Role","Month","Actual"]).issubset(df.columns):
-                df["Month"] = df["Month"].apply(lambda x: x if x in MONTHS else str(x))
-                st.session_state.actual = df[["Role","Month","Actual"] + (["Business Line"] if "Business Line" in df.columns else [])].copy()
-                # if a Business Line column was provided, upsert it into the mapping
-                if "Business Line" in df.columns:
-                    upsert_business_lines_from_df(df)
-                st.success("Actual loaded.")
-            else:
-                st.error("Actual CSV must have columns: Role, Month, Actual")
+# --------------- Page 2: Adjusted Hiring Goals ----------------
+if page == "Adjusted Hiring Goals":
+    st.title("📈 Adjusted Hiring Goals")
+    st.sidebar.subheader("Adjust Attrition Percentage by Allocation")
+    attrition_rates = {allocation: st.sidebar.slider(f"{allocation} Attrition Rate (%)", 0, 50, 10, 1) / 100 for allocation in df_allocation_summary["Allocation"].unique()}
+    df_allocation_summary["Attrition Impact"] = df_allocation_summary.apply(
+        lambda row: row["Total Headcount"] * attrition_rates[row["Allocation"]],
+        axis=1
+    )
+    df_allocation_summary["Final_Hiring_Target"] = df_allocation_summary["Total Headcount"] + df_allocation_summary["Attrition Impact"]
 
-    # Merge Business Line for filtering (prefer uploaded BL if present, else map)
-    def attach_business_line(df):
-        work = df.copy()
-        work["__role_key"] = normalize_role_series(work["Role"])
-        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
-        work = work.merge(map_df, on="__role_key", how="left")
-        if "Business Line" in work.columns:
-            # prefer value from file; fill missing with map
-            work["Business Line"] = work["Business Line"].replace("", np.nan)
-            work["Business Line"] = work["Business Line"].fillna(work["BL_map"])
-        else:
-            work["Business Line"] = work["BL_map"]
-        work["Business Line"] = work["Business Line"].fillna("Other")
-        work = work.drop(columns=["__role_key","BL_map"])
-        return work
+    st.subheader("📌 Final Targets After Attrition")
+    st.dataframe(df_allocation_summary)
 
-    plan_g = attach_business_line(st.session_state.planned)
-    act_g  = attach_business_line(st.session_state.actual)
+    st.subheader("📉 Final Hiring Targets by Allocation")
+    chart = px.bar(df_allocation_summary, x="Allocation", y="Final_Hiring_Target", color="Allocation", title="Final Hiring Targets After Attrition")
+    st.plotly_chart(chart)
 
-    if sel_bline != "All":
-        plan_g = plan_g.query("`Business Line` == @sel_bline")
-        act_g  = act_g .query("`Business Line` == @sel_bline")
+# --------------- Page 3: Recruiter Capacity Model ----------------
+if page == "Recruiter Capacity Model":
+    st.title("🧮 Recruiter Capacity Model")
+    hiring_mode = st.sidebar.radio("Choose Mode", ["Use % Distribution", "Manually Set Quarterly Hiring Targets"])
+    weeks_left_to_hire = st.sidebar.slider("Weeks Left to Hire", 4, 52, 13)
+    effective_weeks = min(weeks_left_to_hire, 13)
 
-    # Pivot helpers
-    def to_wide(df, val):
-        if df.empty:
-            base = pd.DataFrame({"Business Line":[],"Role":[]})
-            for m in MONTHS: base[m] = []
-            return base
-        pvt = df.pivot_table(index=["Business Line","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=MONTHS).fillna(0).astype(int)
-        pvt = pvt.reset_index()
-        return pvt
+    st.sidebar.markdown("### Recruiter Speed (Hires per Quarter)")
+    business_speed = st.sidebar.number_input("Business", value=8)
+    core_speed = st.sidebar.number_input("Core R&D", value=6)
+    ml_speed = st.sidebar.number_input("Machine Learning", value=2)
 
-    wide_plan = to_wide(plan_g, "Planned")
-    wide_act  = to_wide(act_g , "Actual")
+    recruiter_speed_per_quarter = {
+        "Business": business_speed,
+        "Core R&D": core_speed,
+        "Machine Learning": ml_speed
+    }
 
-    # If a specific month is chosen, collapse to single column
-    if sel_month != "All":
-        month_col_plan = ["Business Line","Role", sel_month]
-        month_col_act  = ["Business Line","Role", sel_month]
-        wide_plan = wide_plan[month_col_plan].rename(columns={sel_month:"Planned"})
-        wide_act  = wide_act [month_col_act ].rename(columns={sel_month:"Actual" })
-        wide_var  = wide_plan.merge(wide_act, on=["Business Line","Role"], how="outer").fillna(0)
-        wide_var["Variance"] = wide_var["Planned"].astype(int) - wide_var["Actual"].astype(int)
+    recruiter_count_by_dept = {}
+    for allocation in df_allocation_summary["Allocation"].unique():
+        recruiter_count_by_dept[allocation] = st.sidebar.number_input(f"{allocation} - Recruiters Available", min_value=0, value=1)
 
-        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-        st.dataframe(wide_plan, use_container_width=True)
-        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-        st.dataframe(wide_act, use_container_width=True)
-        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-        st.dataframe(wide_var[["Business Line","Role","Variance"]], use_container_width=True)
+    hiring_quarters = {}
+    if hiring_mode == "Use % Distribution":
+        for allocation in df_allocation_summary["Allocation"].unique():
+            q1 = st.sidebar.slider(f"{allocation} - Q1 %", 0, 100, 25, 1)
+            q2 = st.sidebar.slider(f"{allocation} - Q2 %", 0, 100, 25, 1)
+            q3 = st.sidebar.slider(f"{allocation} - Q3 %", 0, 100, 25, 1)
+            q4 = st.sidebar.slider(f"{allocation} - Q4 %", 0, 100, 25, 1)
+            total = df_allocation_summary.loc[df_allocation_summary["Allocation"] == allocation, "Final_Hiring_Target"].values[0]
+            hiring_quarters[allocation] = [round(total * (q / 100)) for q in [q1, q2, q3, q4]]
     else:
-        # Variance = Plan - Actual per month
-        wide_var = wide_plan.copy()
-        for m in MONTHS:
-            wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
+        for allocation in df_allocation_summary["Allocation"].unique():
+            q1 = st.sidebar.number_input(f"{allocation} - Q1 hires", min_value=0, value=5)
+            q2 = st.sidebar.number_input(f"{allocation} - Q2 hires", min_value=0, value=5)
+            q3 = st.sidebar.number_input(f"{allocation} - Q3 hires", min_value=0, value=5)
+            q4 = st.sidebar.number_input(f"{allocation} - Q4 hires", min_value=0, value=5)
+            hiring_quarters[allocation] = [q1, q2, q3, q4]
 
-        def add_totals(df, label="Total HC"):
-            if df.empty: return df
-            out = []
-            for g, sub in df.groupby("Business Line", sort=False):
-                out.append(sub)
-                tot = {"Business Line": g, "Role": label}
-                for m in MONTHS:
-                    tot[m] = int(sub[m].sum())
-                out.append(pd.DataFrame([tot]))
-            return pd.concat(out, ignore_index=True)
+    df_hiring_schedule = pd.DataFrame.from_dict(hiring_quarters, orient="index", columns=["Q1", "Q2", "Q3", "Q4"])
+    df_hiring_schedule.insert(0, "Allocation", df_hiring_schedule.index)
+    st.subheader("🎯 Candidates to Hire Per Quarter")
+    st.dataframe(df_hiring_schedule)
 
-        st.markdown('<div class="bluehdr">Plan (F1)</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_plan), use_container_width=True)
-        st.markdown('<div class="sectionhdr">Actuals</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_act ), use_container_width=True)
-        st.markdown('<div class="sectionhdr">Variance (Plan − Actual)</div>', unsafe_allow_html=True)
-        st.dataframe(add_totals(wide_var), use_container_width=True)
+    recruiter_quarters = {}
+    recruiter_status_by_quarter = {}
 
+    for allocation in df_hiring_schedule["Allocation"]:
+        hires = df_hiring_schedule.loc[df_hiring_schedule["Allocation"] == allocation, ["Q1", "Q2", "Q3", "Q4"]].values[0]
+        speed = recruiter_speed_per_quarter.get(allocation, 8) / 13  # hires/week
+        available = recruiter_count_by_dept.get(allocation, 0)
+        status_list = []
+        rec_counts = []
 
-# --- Ratios (Month + Business Line filters) ---
-if page == "📈 Ratios":
-    st.title("📈 Ratios: Homes per Headcount")
-    sel_months = st.multiselect("Months", ["All"] + MONTHS, default=["All"])
-    BUSINESS_LINES = refresh_business_lines_list()
-    sel_bline = st.selectbox("Business Line", BUSINESS_LINES, index=0, help="Filter by role → business line")
+        for h in hires:
+            needed = round(h / (speed * effective_weeks), 1)
+            rec_counts.append(needed)
+            if available >= needed:
+                status_list.append("✅")
+            else:
+                status_list.append(f"❌ +{round(needed - available, 1)}")
 
-    total_homes = int(st.session_state.homes["Units"].sum()) if not st.session_state.homes.empty else 0
+        recruiter_quarters[allocation] = rec_counts
+        recruiter_status_by_quarter[allocation] = status_list
 
-    # Merge Business Line for filtering
-    def attach_business_line(df):
-        work = df.copy()
-        work["__role_key"] = normalize_role_series(work["Role"])
-        map_df = st.session_state.role_business_lines[["Business Line","__role_key"]].copy().rename(columns={"Business Line":"BL_map"})
-        work = work.merge(map_df, on="__role_key", how="left")
-        if "Business Line" in work.columns:
-            work["Business Line"] = work["Business Line"].replace("", np.nan)
-            work["Business Line"] = work["Business Line"].fillna(work["BL_map"])
-        else:
-            work["Business Line"] = work["BL_map"]
-        work["Business Line"] = work["Business Line"].fillna("Other")
-        work = work.drop(columns=["__role_key","BL_map"])
-        return work
+    df_recruiter_schedule = pd.DataFrame.from_dict(recruiter_quarters, orient="index", columns=["Q1 Needed", "Q2 Needed", "Q3 Needed", "Q4 Needed"])
+    df_recruiter_schedule.insert(0, "Allocation", df_recruiter_schedule.index)
 
-    plan_g = attach_business_line(st.session_state.planned)
-    act_g  = attach_business_line(st.session_state.actual)
+    df_status = pd.DataFrame.from_dict(recruiter_status_by_quarter, orient="index", columns=["Q1 Status", "Q2 Status", "Q3 Status", "Q4 Status"])
+    df_status.insert(0, "Allocation", df_status.index)
 
-    if sel_bline != "All":
-        plan_g = plan_g.query("`Business Line` == @sel_bline")
-        act_g  = act_g.query("`Business Line` == @sel_bline")
+    st.subheader("🧮 Recruiter Needs Per Quarter")
+    st.dataframe(df_recruiter_schedule)
 
-    # Pivot helpers
-    def to_wide(df, val, months):
-        if df.empty:
-            base = pd.DataFrame({"Business Line":[],"Role":[]})
-            for m in months: base[m] = []
-            return base
-        pvt = df.pivot_table(index=["Business Line","Role"], columns="Month", values=val, aggfunc="sum").reindex(columns=months).fillna(0).astype(int)
-        pvt = pvt.reset_index()
-        return pvt
+    st.subheader("🟩 Recruiter Status Per Quarter")
+    st.dataframe(df_status)
 
-    # Determine months to display
-    if "All" in sel_months:
-        months_to_show = MONTHS
-    else:
-        months_to_show = sel_months if sel_months else [CURRENT_MONTH]
+# --------------- Page 4: Finance Overview ----------------
+if page == "Finance Overview":
+    st.title("💰 Finance Overview")
+    original_df = st.session_state.original_headcount
+    current_df = st.session_state.headcount_data
+    delta_df = current_df.copy()
+    delta_df["Original Total"] = original_df["Total Headcount"]
+    delta_df["Change"] = delta_df["Total Headcount"] - delta_df["Original Total"]
+    delta_df["Approval Required"] = delta_df["Change"].apply(lambda x: "Yes" if x > 0 else "No")
 
-    wide_plan = to_wide(plan_g, "Planned", months_to_show)
-    wide_act  = to_wide(act_g , "Actual" , months_to_show)
+    st.subheader("📊 Headcount Changes by Sub-Dept")
+    st.dataframe(delta_df[["Allocation", "Sub-Dept", "Original Total", "Total Headcount", "Change", "Approval Required"]])
 
-    # Variance = Plan - Actual
-    wide_var = wide_plan.copy()
-    for m in months_to_show:
-        wide_var[m] = wide_plan.get(m, 0) - wide_act.get(m, 0)
-
-    # Ratios
-    wide_ratio_plan = wide_plan.copy()
-    wide_ratio_act  = wide_act.copy()
-    wide_ratio_var  = wide_var.copy()
-    for m in months_to_show:
-        wide_ratio_plan[m] = wide_plan[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
-        wide_ratio_act[m]  = wide_act[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
-        wide_ratio_var[m]  = wide_var[m].apply(lambda x: round(total_homes/x,2) if x>0 else None)
-
-    def add_totals(df, label="Total HC"):
-        if df.empty: return df
-        out = []
-        for g, sub in df.groupby("Business Line", sort=False):
-            out.append(sub)
-            tot = {"Business Line": g, "Role": label}
-            for m in months_to_show:
-                tot[m] = int(sub[m].sum())
-            out.append(pd.DataFrame([tot]))
-        return pd.concat(out, ignore_index=True)
-
-    st.markdown('<div class="bluehdr">Homes per Planned HC</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_ratio_plan), use_container_width=True)
-
-    st.markdown('<div class="sectionhdr">Homes per Actual HC</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_ratio_act), use_container_width=True)
-
-    st.markdown('<div class="sectionhdr">Homes per Variance in HC</div>', unsafe_allow_html=True)
-    st.dataframe(add_totals(wide_ratio_var), use_container_width=True)
-
+    st.subheader("📉 Change Summary (Bar Chart)")
+    fig = px.bar(delta_df, x="Sub-Dept", y="Change", color="Allocation", title="Headcount Change vs Original Plan")
+    st.plotly_chart(fig)
