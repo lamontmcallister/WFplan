@@ -5,13 +5,16 @@ import plotly.express as px
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # =============================================================================
-# Math fix:
-# - Recruiter hiring volume should NOT include "Employees in seat" or "Future Starts"
-# - Recruiter Hiring Volume = Planned Hiring (FY26) + Attrition Backfill
-# - Planned Hiring (FY26) = FY26 Planned + Open + FY26 Planned - not yet opened
-# - Attrition Backfill is based on current workforce baseline:
-#     Workforce Baseline = Employees in seat + Future Starts
+# DEMO MODE (keeps UI smooth):
+#   - Collapses all Sub-Depts into the 3 Allocation buckets:
+#       Business, Core R&D, Machine Learning
+#   - Fixes hiring math:
+#       Recruiter Hiring Volume = Planned Hiring (FY26) + Attrition Backfill
+#       Planned Hiring (FY26) = FY26 Planned + Open + FY26 Planned - not yet opened
+#       Attrition Backfill = (Employees in seat + Future Starts) * Attrition Rate
 # =============================================================================
+
+DEMO_MODE = True  # flip to False later if you want the full sub-dept breakdown back
 
 # --------------- Load or initialize data ----------------
 if "headcount_data" not in st.session_state:
@@ -32,11 +35,25 @@ if "headcount_data" not in st.session_state:
         "FY26 Planned - not yet opened": [4, 16, 40, 10, 18, 3, 1, 2, 0, 1, 1, 0, 2, 1, 0, 2, 15, 0, 6, 6, 1, 0]
     }
     df_headcount = pd.DataFrame(headcount_data)
-
     st.session_state.headcount_data = df_headcount
     st.session_state.original_headcount = df_headcount.copy()
 
 df_headcount = st.session_state.headcount_data
+
+# ---------------- DEMO collapse ----------------
+if DEMO_MODE:
+    # Collapse sub-depts into the Allocation buckets (keeps table simple)
+    df_headcount["Sub-Dept"] = df_headcount["Allocation"]
+
+    # Aggregate to ONLY 3 rows (ultra clean demo)
+    df_headcount = (
+        df_headcount
+        .groupby(["Allocation", "Sub-Dept"], as_index=False)
+        .sum(numeric_only=True)
+    )
+
+    # Persist the aggregated version in session for the rest of the app
+    st.session_state.headcount_data = df_headcount
 
 # --- Derived columns (recomputed every run so edits are reflected) ---
 df_headcount["Workforce Baseline"] = df_headcount["Employees in seat"] + df_headcount["Future Starts"]
@@ -115,7 +132,7 @@ if page == "Adjusted Hiring Goals":
         for allocation in df_allocation_summary["Allocation"].unique()
     }
 
-    current_df = st.session_state.headcount_data
+    current_df = st.session_state.headcount_data.copy()
     current_df["Workforce Baseline"] = current_df["Employees in seat"] + current_df["Future Starts"]
     current_df["Planned Hiring (FY26)"] = current_df["FY26 Planned + Open"] + current_df["FY26 Planned - not yet opened"]
 
@@ -136,15 +153,19 @@ if page == "Adjusted Hiring Goals":
     )
 
     st.subheader("📉 Final Hiring Targets by Allocation")
-    chart = px.bar(df_allocation_summary, x="Allocation", y="Final_Hiring_Target", color="Allocation",
-                   title="Recruiter Hiring Volume (Planned + Attrition Backfill)")
+    chart = px.bar(
+        df_allocation_summary,
+        x="Allocation",
+        y="Final_Hiring_Target",
+        color="Allocation",
+        title="Recruiter Hiring Volume (Planned + Attrition Backfill)"
+    )
     st.plotly_chart(chart, use_container_width=True)
 
 # --------------- Page 3: Recruiter Capacity Model ----------------
 if page == "Recruiter Capacity Model":
     st.title("🧮 Recruiter Capacity Model")
 
-    # Build allocation summary from current data and use recruiter hiring volume
     current_df = st.session_state.headcount_data.copy()
     current_df["Workforce Baseline"] = current_df["Employees in seat"] + current_df["Future Starts"]
     current_df["Planned Hiring (FY26)"] = current_df["FY26 Planned + Open"] + current_df["FY26 Planned - not yet opened"]
@@ -232,26 +253,51 @@ if page == "Recruiter Capacity Model":
 if page == "Finance Overview":
     st.title("💰 Finance Overview")
 
-    # Finance view should track changes in PLANNED HIRING (not total workforce)
+    # Finance tracks changes in PLANNED HIRING (not total workforce)
     original_df = st.session_state.original_headcount.copy()
     current_df = st.session_state.headcount_data.copy()
 
     for d in (original_df, current_df):
+        if DEMO_MODE:
+            d["Sub-Dept"] = d["Allocation"]
+            d = d.groupby(["Allocation", "Sub-Dept"], as_index=False).sum(numeric_only=True)
         d["Planned Hiring (FY26)"] = d["FY26 Planned + Open"] + d["FY26 Planned - not yet opened"]
 
+    # Recreate from session copy (after grouping above if DEMO_MODE)
+    original_df = st.session_state.original_headcount.copy()
+    current_df = st.session_state.headcount_data.copy()
+
+    if DEMO_MODE:
+        original_df["Sub-Dept"] = original_df["Allocation"]
+        current_df["Sub-Dept"] = current_df["Allocation"]
+        original_df = original_df.groupby(["Allocation", "Sub-Dept"], as_index=False).sum(numeric_only=True)
+        current_df = current_df.groupby(["Allocation", "Sub-Dept"], as_index=False).sum(numeric_only=True)
+
+    original_df["Planned Hiring (FY26)"] = original_df["FY26 Planned + Open"] + original_df["FY26 Planned - not yet opened"]
+    current_df["Planned Hiring (FY26)"] = current_df["FY26 Planned + Open"] + current_df["FY26 Planned - not yet opened"]
+
     delta_df = current_df.copy()
-    delta_df["Original Planned Hiring"] = original_df["Planned Hiring (FY26)"]
-    delta_df["Planned Hiring"] = current_df["Planned Hiring (FY26)"]
-    delta_df["Change (Planned Hiring)"] = delta_df["Planned Hiring"] - delta_df["Original Planned Hiring"]
+    delta_df = delta_df.merge(
+        original_df[["Allocation", "Sub-Dept", "Planned Hiring (FY26)"]].rename(columns={"Planned Hiring (FY26)": "Original Planned Hiring"}),
+        on=["Allocation", "Sub-Dept"],
+        how="left"
+    )
+
+    delta_df["Change (Planned Hiring)"] = delta_df["Planned Hiring (FY26)"] - delta_df["Original Planned Hiring"]
     delta_df["Approval Required"] = delta_df["Change (Planned Hiring)"].apply(lambda x: "Yes" if x > 0 else "No")
 
-    st.subheader("📊 Planned Hiring Changes by Sub-Dept")
+    st.subheader("📊 Planned Hiring Changes")
     st.dataframe(
-        delta_df[["Allocation", "Sub-Dept", "Original Planned Hiring", "Planned Hiring", "Change (Planned Hiring)", "Approval Required"]],
+        delta_df[["Allocation", "Sub-Dept", "Original Planned Hiring", "Planned Hiring (FY26)", "Change (Planned Hiring)", "Approval Required"]],
         use_container_width=True
     )
 
     st.subheader("📉 Change Summary (Bar Chart)")
-    fig = px.bar(delta_df, x="Sub-Dept", y="Change (Planned Hiring)", color="Allocation",
-                 title="Planned Hiring Change vs Original Plan")
+    fig = px.bar(
+        delta_df,
+        x="Sub-Dept",
+        y="Change (Planned Hiring)",
+        color="Allocation",
+        title="Planned Hiring Change vs Original Plan"
+    )
     st.plotly_chart(fig, use_container_width=True)
