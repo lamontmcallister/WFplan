@@ -3,6 +3,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# ---------------- Demo settings ----------------
+# Flip this to False to restore full Sub-Dept detail.
+DEMO_MODE = True
+
+
 st.set_page_config(page_title="Recruiting Dashboard", layout="wide")
 
 # --------------- Load or initialize data ----------------
@@ -27,6 +32,18 @@ if "headcount_data" not in st.session_state:
     df_headcount["Total Headcount"] = df_headcount[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
+
+    # ---------------- Demo Mode: simplify to 3 top-level allocations ----------------
+    if DEMO_MODE:
+        # Aggregate to Allocation level so the UI (and demo story) stays clean.
+        df_headcount = df_headcount.groupby("Allocation", as_index=False).sum(numeric_only=True)
+        df_headcount["Sub-Dept"] = df_headcount["Allocation"]
+
+        # Re-order columns for nicer display
+        cols_front = ["Allocation", "Sub-Dept"]
+        cols_rest = [c for c in df_headcount.columns if c not in cols_front]
+        df_headcount = df_headcount[cols_front + cols_rest]
+
     st.session_state.headcount_data = df_headcount
     st.session_state.original_headcount = df_headcount.copy()
 
@@ -55,6 +72,14 @@ if page == "Headcount Adjustments":
     edited_df["Total Headcount"] = edited_df[
         ["Employees in seat", "Future Starts", "FY26 Planned + Open", "FY26 Planned - not yet opened"]
     ].sum(axis=1)
+
+    if DEMO_MODE:
+        edited_df = edited_df.groupby("Allocation", as_index=False).sum(numeric_only=True)
+        edited_df["Sub-Dept"] = edited_df["Allocation"]
+        cols_front = ["Allocation", "Sub-Dept"]
+        cols_rest = [c for c in edited_df.columns if c not in cols_front]
+        edited_df = edited_df[cols_front + cols_rest]
+
     st.session_state.headcount_data = edited_df
 
     df_allocation_summary = edited_df.groupby("Allocation").sum(numeric_only=True).reset_index()
